@@ -10,6 +10,7 @@ from .factory import AIProviderFactory, ProviderChain
 from .openai_provider import OpenAIProvider
 from .ollama_provider import OllamaProvider
 from .demo_provider import DemoProvider
+from .multimodal_provider import MultimodalProvider
 
 __all__ = [
     "AIProvider",
@@ -18,4 +19,5 @@ __all__ = [
     "OpenAIProvider",
     "OllamaProvider",
     "DemoProvider",
+    "MultimodalProvider",
 ]

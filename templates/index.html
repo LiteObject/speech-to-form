@@ -116,25 +116,21 @@
         .status.info {
             background: #e3f2fd;
             color: #1565c0;
-            border-left: 4px solid #1565c0;
         }
 
         .status.success {
             background: #e8f5e9;
             color: #2e7d32;
-            border-left: 4px solid #2e7d32;
         }
 
         .status.warning {
             background: #fff3e0;
             color: #ef6c00;
-            border-left: 4px solid #ef6c00;
         }
 
         .status.error {
             background: #ffebee;
             color: #c62828;
-            border-left: 4px solid #c62828;
         }
 
         /* Progress Steps */
@@ -381,6 +377,148 @@
         .transcript-preview.show {
             display: block;
         }
+
+        /* Processing Mode Selector */
+        .mode-selector {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .mode-selector-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .mode-options {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .mode-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            cursor: pointer;
+            padding: 10px 15px;
+            border-radius: 6px;
+            border: 2px solid #e0e0e0;
+            background: white;
+            flex: 1;
+            min-width: 200px;
+            transition: all 0.2s;
+        }
+
+        .mode-option:hover {
+            border-color: #667eea;
+        }
+
+        .mode-option.selected {
+            border-color: #667eea;
+            background: #f3e8ff;
+        }
+
+        .mode-option input[type="radio"] {
+            margin-top: 3px;
+        }
+
+        .mode-option-content {
+            flex: 1;
+        }
+
+        .mode-option-label {
+            font-weight: 600;
+            color: #333;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .mode-option-desc {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .mode-option-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 600;
+            margin-left: 5px;
+        }
+
+        .badge-fast {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-accurate {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .badge-local {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        /* Backend selector (sub-options for single-stage) */
+        .backend-selector {
+            margin-top: 10px;
+            padding: 12px 15px;
+            background: #f0f4ff;
+            border-radius: 6px;
+            border: 1px solid #d0d9ff;
+            display: none;
+        }
+
+        .backend-selector.show {
+            display: block;
+        }
+
+        .backend-selector-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 8px;
+        }
+
+        .backend-options {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .backend-option {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            padding: 6px 12px;
+            border-radius: 4px;
+            border: 1px solid #d0d9ff;
+            background: white;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .backend-option:hover {
+            border-color: #667eea;
+        }
+
+        .backend-option.selected {
+            border-color: #667eea;
+            background: #e8f0fe;
+        }
+
+        .backend-option input[type="radio"] {
+            margin: 0;
+        }
     </style>
 </head>
 
@@ -388,6 +526,57 @@
     <div class="container">
         <h1>Voice-Enabled Form</h1>
         <p class="subtitle">Speak naturally to fill out the form</p>
+
+        <!-- Processing Mode Selector -->
+        <div class="mode-selector">
+            <div class="mode-selector-title">Processing Mode</div>
+            <div class="mode-options">
+                <label class="mode-option selected" id="mode-two-stage" onclick="selectMode('two-stage')">
+                    <input type="radio" name="processing-mode" value="two-stage" checked>
+                    <div class="mode-option-content">
+                        <span class="mode-option-label">
+                            Two-Stage (Local)
+                            <span class="mode-option-badge badge-fast">FAST</span>
+                        </span>
+                        <span class="mode-option-desc">Whisper transcription + local extraction. Works offline, instant
+                            parsing.</span>
+                    </div>
+                </label>
+                <label class="mode-option" id="mode-single-stage" onclick="selectMode('single-stage')">
+                    <input type="radio" name="processing-mode" value="single-stage">
+                    <div class="mode-option-content">
+                        <span class="mode-option-label">
+                            Single-Stage
+                            <span class="mode-option-badge badge-accurate">ACCURATE</span>
+                        </span>
+                        <span class="mode-option-desc">Audio processed directly by LLM for transcription +
+                            extraction.</span>
+                    </div>
+                </label>
+            </div>
+
+            <!-- Backend selector (shown when single-stage is selected) -->
+            <div class="backend-selector" id="backendSelector">
+                <div class="backend-selector-title">Select Backend:</div>
+                <div class="backend-options">
+                    <label class="backend-option selected" id="backend-openai" onclick="selectBackend('openai')">
+                        <input type="radio" name="backend" value="openai" checked>
+                        <span>OpenAI GPT-4o</span>
+                        <span class="mode-option-badge badge-accurate">CLOUD</span>
+                    </label>
+                    <label class="backend-option" id="backend-ollama" onclick="selectBackend('ollama')">
+                        <input type="radio" name="backend" value="ollama">
+                        <span>Ollama (Whisper + LLM)</span>
+                        <span class="mode-option-badge badge-local">LOCAL</span>
+                    </label>
+                    <label class="backend-option" id="backend-vllm" onclick="selectBackend('vllm')">
+                        <input type="radio" name="backend" value="vllm">
+                        <span>vLLM (Ultravox)</span>
+                        <span class="mode-option-badge badge-local">LOCAL</span>
+                    </label>
+                </div>
+            </div>
+        </div>
 
         <!-- Progress Steps -->
         <div class="progress-steps">
@@ -416,8 +605,8 @@
                 <span id="recordText">Start Recording</span>
             </button>
             <div class="voice-hint" id="voiceHint">
-                Say something like: "My name is John Smith, email john@example.com, phone 555-123-4567, address 123 Main
-                Street"
+                Say all your information, then click Stop. Example: "My name is John Smith, email john@example.com,
+                phone 555-123-4567, address 123 Main Street"
             </div>
             <div class="transcript-preview" id="transcriptPreview"></div>
         </div>
@@ -511,11 +700,131 @@
         let currentMode = 'all'; // 'all' or 'single'
         let currentPromptField = null;
         let missingFieldsQueue = [];
+        let processingMode = 'two-stage'; // 'two-stage' or 'single-stage'
+        let selectedBackend = 'openai'; // 'openai', 'ollama', or 'vllm'
 
         // Silence detection settings
         const SILENCE_THRESHOLD = 0.08;
         const SILENCE_DELAY = 1500; // 1.5 seconds of silence
         const MIN_RECORDING_TIME = 800;
+
+        // ============================================
+        // Mode Selection
+        // ============================================
+        function selectMode(mode) {
+            processingMode = mode;
+
+            // Update UI
+            document.querySelectorAll('.mode-option').forEach(el => {
+                el.classList.remove('selected');
+            });
+            document.getElementById(`mode-${mode}`).classList.add('selected');
+
+            // Update radio button
+            document.querySelector(`input[value="${mode}"]`).checked = true;
+
+            // Show/hide backend selector
+            const backendSelector = document.getElementById('backendSelector');
+            if (mode === 'single-stage') {
+                backendSelector.classList.add('show');
+            } else {
+                backendSelector.classList.remove('show');
+            }
+
+            // Update hint text based on mode and backend
+            updateHintText();
+        }
+
+        function selectBackend(backend) {
+            selectedBackend = backend;
+
+            // Update UI
+            document.querySelectorAll('.backend-option').forEach(el => {
+                el.classList.remove('selected');
+            });
+            document.getElementById(`backend-${backend}`).classList.add('selected');
+
+            // Update radio button
+            document.querySelector(`input[value="${backend}"]`).checked = true;
+
+            // Update hint text
+            updateHintText();
+        }
+
+        function updateHintText() {
+            const hint = document.getElementById('voiceHint');
+            if (processingMode === 'single-stage') {
+                const backendLabels = {
+                    'openai': 'Audio sent directly to OpenAI GPT-4o (cloud).',
+                    'ollama': 'Audio processed locally with Whisper + Ollama LLM.',
+                    'vllm': 'Audio processed locally with vLLM Ultravox model.'
+                };
+                hint.textContent = 'Single-stage mode: ' + backendLabels[selectedBackend];
+            } else {
+                hint.textContent = 'Say all your information, then click Stop. Example: "My name is John Smith, email john@example.com, phone 555-123-4567, address 123 Main Street"';
+            }
+        }
+
+        // ============================================
+        // Text Normalization
+        // ============================================
+        function normalizeFieldValue(fieldId, value) {
+            if (!value) return value;
+
+            let normalized = value.trim();
+
+            // Detect and combine spelled-out letters (e.g., "M O H A M M E D" → "Mohammed")
+            normalized = combineSpelledLetters(normalized);
+
+            if (fieldId === 'email') {
+                // Convert spoken email patterns to proper format
+                normalized = normalized
+                    .toLowerCase()
+                    .replace(/\s+at\s+/gi, '@')
+                    .replace(/\bat\b/gi, '@')
+                    .replace(/\s+dot\s+/gi, '.')
+                    .replace(/\bdot\b/gi, '.')
+                    .replace(/\s+/g, '')  // Remove all spaces from email
+                    .replace(/,/g, '.');   // Common misheard comma as dot
+            }
+
+            if (fieldId === 'phone') {
+                // Clean up phone number - keep only digits and common separators
+                normalized = normalized
+                    .replace(/[oO]/g, '0')  // Common O for 0 mishearing
+                    .replace(/\s+/g, '-')   // Replace spaces with dashes
+                    .replace(/[^0-9\-\(\)\+]/g, ''); // Keep only valid phone chars
+            }
+
+            return normalized;
+        }
+
+        function combineSpelledLetters(text) {
+            // Handle both space-separated and hyphen-separated spelled letters
+            // e.g., "M O H A M M E D" or "M-O-H-A-M-M-E-D" → "Mohammed"
+
+            // First, normalize hyphens between single letters to spaces
+            // Pattern: single letter, hyphen, single letter (repeated)
+            let normalized = text.replace(/\b([a-zA-Z])-([a-zA-Z])-([a-zA-Z])(-[a-zA-Z])*\b/g, (match) => {
+                return match.replace(/-/g, ' ');
+            });
+
+            // Now handle space-separated single letters (at least 3 consecutive)
+            const spelledPattern = /\b([a-zA-Z])\s+([a-zA-Z])\s+([a-zA-Z])(\s+[a-zA-Z])*\b/g;
+
+            return normalized.replace(spelledPattern, (match) => {
+                // Check if this looks like spelled letters (all single chars separated by spaces)
+                const letters = match.split(/\s+/);
+
+                // Only combine if all parts are single letters
+                if (letters.every(l => l.length === 1)) {
+                    // Capitalize first letter, lowercase rest
+                    const combined = letters.join('');
+                    return combined.charAt(0).toUpperCase() + combined.slice(1).toLowerCase();
+                }
+                return match;
+            });
+        }
 
         // ============================================
         // UI Helpers
@@ -718,17 +1027,25 @@
             const silenceDuration = now - lastSoundTime;
             const recordingDuration = now - recordingStartTime;
 
-            if (silenceDuration > SILENCE_DELAY && recordingDuration > MIN_RECORDING_TIME) {
-                console.log('Silence detected, stopping recording');
-                showStatus('🔄 Processing your speech...', 'info');
-                stopRecording();
-                return;
-            }
+            // For single field prompts, use silence detection
+            // For main recording ('all' mode), only stop via button click
+            if (currentMode === 'single') {
+                if (silenceDuration > SILENCE_DELAY && recordingDuration > MIN_RECORDING_TIME) {
+                    console.log('Silence detected, stopping field recording');
+                    showStatus('🔄 Processing your speech...', 'info');
+                    stopRecording();
+                    return;
+                }
 
-            // Visual feedback
-            if (silenceDuration > 500 && silenceDuration < SILENCE_DELAY) {
-                const remaining = Math.ceil((SILENCE_DELAY - silenceDuration) / 1000);
-                showStatus(`🎤 Listening... (auto-stop in ${remaining}s of silence)`, 'info');
+                // Visual feedback for single field mode
+                if (silenceDuration > 500 && silenceDuration < SILENCE_DELAY) {
+                    const remaining = Math.ceil((SILENCE_DELAY - silenceDuration) / 1000);
+                    showStatus(`🎤 Listening... (auto-stop in ${remaining}s of silence)`, 'info');
+                }
+            } else {
+                // Main recording mode - show recording duration
+                const seconds = Math.floor(recordingDuration / 1000);
+                showStatus(`🎤 Recording... ${seconds}s (click Stop when done)`, 'info');
             }
 
             requestAnimationFrame(detectSilence);
@@ -739,13 +1056,35 @@
         // ============================================
         async function processFullRecording(audioBlob) {
             setStep('step-process');
-            showStatus('🔄 Transcribing and extracting fields...', 'info');
+
+            // Choose endpoint based on processing mode
+            const endpoint = processingMode === 'single-stage' ? '/transcribe_multimodal' : '/transcribe';
+
+            // Build mode label based on mode and backend
+            let modeLabel;
+            if (processingMode === 'single-stage') {
+                const backendLabels = {
+                    'openai': 'OpenAI GPT-4o',
+                    'ollama': 'Ollama (Local)',
+                    'vllm': 'vLLM (Local)'
+                };
+                modeLabel = `Single-stage (${backendLabels[selectedBackend]})`;
+            } else {
+                modeLabel = 'Two-stage (Whisper + Extraction)';
+            }
+
+            showStatus(`Processing with ${modeLabel}...`, 'info');
 
             const formData = new FormData();
             formData.append('audio', audioBlob, 'recording.webm');
 
+            // Add backend parameter for single-stage mode
+            if (processingMode === 'single-stage') {
+                formData.append('backend', selectedBackend);
+            }
+
             try {
-                const response = await fetch('/transcribe', {
+                const response = await fetch(endpoint, {
                     method: 'POST',
                     body: formData
                 });
@@ -754,9 +1093,16 @@
                 console.log('Transcription result:', result);
 
                 if (response.ok && result.success) {
-                    // Show transcript
+                    // Show transcript with method info
                     const preview = document.getElementById('transcriptPreview');
-                    preview.textContent = `"${result.transcript}"`;
+                    let methodInfo = '';
+                    if (result.method === 'multimodal') {
+                        const backendName = result.backend || selectedBackend;
+                        methodInfo = ` [Single-Stage: ${backendName}]`;
+                    } else {
+                        methodInfo = ' [Two-Stage]';
+                    }
+                    preview.textContent = `"${result.transcript}"${methodInfo}`;
                     preview.classList.add('show');
 
                     // Fill fields
@@ -774,6 +1120,7 @@
                         showCompletion();
                     }
                 } else {
+                    // Show error message (no automatic fallback)
                     showStatus(result.error || 'Failed to process speech', 'error');
                 }
             } catch (error) {
@@ -786,7 +1133,8 @@
             FIELDS.forEach(field => {
                 const value = formData[field];
                 if (value && value.trim()) {
-                    document.getElementById(field).value = value.trim();
+                    const normalized = normalizeFieldValue(field, value);
+                    document.getElementById(field).value = normalized;
                     setFieldState(field, 'filled');
                 }
             });
@@ -884,7 +1232,8 @@
 
                 if (response.ok && result.success && result.transcript) {
                     const input = document.getElementById(fieldId);
-                    input.value = result.transcript.trim();
+                    const normalized = normalizeFieldValue(fieldId, result.transcript);
+                    input.value = normalized;
                     setFieldState(fieldId, 'filled');
                     hideFieldPrompt(fieldId);
 

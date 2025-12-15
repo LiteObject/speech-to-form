@@ -2,6 +2,291 @@
 
 This is a Flask web application that demonstrates intelligent voice-enabled form filling using speech recognition and AI-powered text processing with real-time field highlighting and step-by-step guidance.
 
+## Architecture Overview
+
+The application uses a two-stage pipeline to convert speech into structured form data:
+
+```
+Audio Input --> [Speech-to-Text] --> Text --> [Text Extraction] --> Form Fields
+                   (Whisper)                   (Regex/LLM)
+```
+
+### Stage 1: Speech-to-Text (Whisper)
+
+Local Whisper model transcribes audio to text. This runs entirely on your machine.
+
+### Stage 2: Text Extraction
+
+Configurable extractors parse the transcribed text into structured form fields. The system tries extractors in priority order until one succeeds.
+
+## Extraction Approaches
+
+The application supports multiple extraction strategies, each with different trade-offs:
+
+### Approach 1: Regex-First (Default)
+
+```
+AI_PROVIDER_PRIORITY=demo,ollama,openai
+```
+
+| Aspect | Details |
+|--------|---------|
+| Speed | Instant (less than 1ms) |
+| Accuracy | Good for predictable patterns |
+| Offline | Yes |
+| Cost | Free |
+
+**How it works**: Uses regular expressions to match patterns like "my name is [NAME]" or "[EMAIL] at [DOMAIN] dot com".
+
+**Pros**:
+- Extremely fast response time
+- Works completely offline
+- No API costs
+- Predictable behavior
+
+**Cons**:
+- Requires users to speak in expected patterns
+- May fail on unusual phrasing
+- Needs manual pattern updates for new speech variations
+
+**Best for**: Applications where users follow guided prompts and speed is critical.
+
+### Approach 2: LLM-First (Ollama)
+
+```
+AI_PROVIDER_PRIORITY=ollama,demo,openai
+```
+
+| Aspect | Details |
+|--------|---------|
+| Speed | 2-10 seconds (depends on model size) |
+| Accuracy | High, handles varied phrasing |
+| Offline | Yes (local inference) |
+| Cost | Free (requires GPU for best performance) |
+
+**How it works**: Sends the transcribed text to a local LLM (via Ollama) with a prompt requesting structured JSON output.
+
+**Pros**:
+- Understands natural language variations
+- Handles complex or ambiguous input
+- No cloud API dependency
+- Can extract from unstructured speech
+
+**Cons**:
+- Slower than regex (seconds vs milliseconds)
+- Requires Ollama running locally
+- GPU recommended for acceptable speed
+- Model quality affects accuracy
+
+**Best for**: Applications requiring flexibility in how users speak.
+
+### Approach 3: Cloud API (OpenAI)
+
+```
+AI_PROVIDER_PRIORITY=openai,demo
+```
+
+| Aspect | Details |
+|--------|---------|
+| Speed | 1-3 seconds |
+| Accuracy | Highest |
+| Offline | No |
+| Cost | Pay per request |
+
+**How it works**: Sends transcribed text to OpenAI API for extraction.
+
+**Pros**:
+- Best accuracy and language understanding
+- No local compute requirements
+- Handles edge cases well
+- Consistent performance
+
+**Cons**:
+- Requires internet connection
+- API costs accumulate with usage
+- Privacy considerations for sensitive data
+- Rate limits may apply
+
+**Best for**: Production applications where accuracy is paramount and cost is acceptable.
+
+### Approach 4: Single-Stage Multimodal (Implemented)
+
+The application supports multiple backends for single-stage processing:
+
+#### Backend Options
+
+| Backend | Audio Processing | Extraction | Requirements |
+|---------|-----------------|------------|--------------|
+| **OpenAI GPT-4o** | Cloud (native audio) | Cloud | OPENAI_API_KEY |
+| **Ollama** | Local Whisper | Local LLM | Ollama running |
+| **vLLM** | Local (Ultravox) | Local | NVIDIA GPU + vLLM server |
+
+#### OpenAI GPT-4o (Cloud)
+
+```
+Audio --> [GPT-4o Audio API] --> Form Fields
+          (transcribe + extract in one call)
+```
+
+| Aspect | Details |
+|--------|---------|
+| Speed | 2-5 seconds |
+| Accuracy | Highest (audio context preserved) |
+| Offline | No |
+| Cost | Higher (audio tokens) |
+
+**How it works**: Audio is sent directly to GPT-4o which handles both transcription and field extraction in a single API call.
+
+**Pros**:
+- Single model handles everything
+- Audio context preserved (tone, emphasis)
+- Best accuracy for ambiguous speech
+- Simpler architecture (one API call)
+
+**Cons**:
+- Requires OpenAI API key with audio model access
+- Higher cost per request (audio tokens)
+- Audio must be uploaded to cloud
+- Requires internet connection
+
+#### Ollama Backend (Local)
+
+```
+Audio --> [Local Whisper] --> Text --> [Ollama LLM] --> Form Fields
+```
+
+| Aspect | Details |
+|--------|---------|
+| Speed | 3-15 seconds (depends on model) |
+| Accuracy | Good (depends on LLM quality) |
+| Offline | Yes |
+| Cost | Free |
+
+**How it works**: Uses local Whisper for transcription, then sends text to your local Ollama model for extraction.
+
+**Pros**:
+- Completely offline and private
+- No API costs
+- Uses your existing Ollama setup
+- Works on CPU (slower) or GPU
+
+**Cons**:
+- Slower than cloud options
+- Accuracy depends on local model quality
+- Requires Ollama to be running
+
+#### vLLM Backend (Local GPU)
+
+```
+Audio --> [vLLM + Ultravox] --> Form Fields
+          (native audio model)
+```
+
+| Aspect | Details |
+|--------|---------|
+| Speed | 2-5 seconds |
+| Accuracy | High |
+| Offline | Yes |
+| Cost | Free (but requires GPU) |
+
+**How it works**: Uses vLLM with audio-capable models like Ultravox for native audio processing.
+
+**Pros**:
+- True single-stage local processing
+- No cloud dependency
+- High throughput with GPU
+
+**Cons**:
+- **Requires NVIDIA GPU** (compute capability 7.0+)
+- Requires vLLM server running
+- Large model downloads
+- Not suitable for CPU-only systems
+
+## Recommendations
+
+### Choose Your Setup Based On:
+
+| Your Situation | Recommended Setup |
+|----------------|-------------------|
+| **No GPU, want speed** | Two-Stage with regex-first (`demo,ollama,openai`) |
+| **No GPU, want accuracy** | Two-Stage with Ollama-first (`ollama,demo,openai`) |
+| **Have OpenAI API key** | Single-Stage with OpenAI GPT-4o |
+| **Privacy-focused, no cloud** | Two-Stage with Ollama or Single-Stage Ollama backend |
+| **Have NVIDIA GPU** | Single-Stage with vLLM + Ultravox |
+| **Production app** | Single-Stage OpenAI (most reliable) |
+
+### Quick Decision Guide
+
+```
+Do you have an OpenAI API key?
+├── Yes --> Use Single-Stage: OpenAI GPT-4o (best accuracy)
+└── No
+    ├── Do you need high accuracy?
+    │   ├── Yes --> Use Two-Stage: Ollama-first
+    │   └── No --> Use Two-Stage: Regex-first (fastest)
+    └── Do you have an NVIDIA GPU?
+        ├── Yes --> Consider Single-Stage: vLLM
+        └── No --> Use Two-Stage or Single-Stage: Ollama
+```
+
+### Performance Expectations
+
+| Mode | Backend | Typical Latency | Accuracy |
+|------|---------|-----------------|----------|
+| Two-Stage | Demo (regex) | < 2 sec | Good (pattern-dependent) |
+| Two-Stage | Ollama | 3-15 sec | Good-High |
+| Single-Stage | OpenAI | 2-5 sec | Highest |
+| Single-Stage | Ollama | 3-15 sec | Good-High |
+| Single-Stage | vLLM | 2-5 sec | High |
+
+## User Interface Mode Selection
+
+The application provides a UI toggle to switch between processing modes:
+
+### Processing Modes
+
+| Mode | Description | When to Use |
+|------|-------------|-------------|
+| **Two-Stage (Local)** | Whisper + local extraction | Fast, offline, free |
+| **Single-Stage** | Direct audio-to-fields | Most accurate |
+
+### Single-Stage Backend Options
+
+When Single-Stage is selected, you can choose from:
+
+| Backend | Description | Requirements |
+|---------|-------------|--------------|
+| **OpenAI GPT-4o** | Cloud processing with native audio | `OPENAI_API_KEY` in `.env` |
+| **Ollama** | Local Whisper + Ollama LLM | Ollama server running |
+| **vLLM** | Local GPU with Ultravox | NVIDIA GPU + vLLM server |
+
+Users can select their preferred mode and backend from the form interface before recording.
+
+## Choosing an Approach
+
+| Priority | Use Case |
+|----------|----------|
+| Speed | Use regex-first (demo,ollama,openai) |
+| Accuracy | Use LLM-first (ollama,demo,openai) or cloud (openai,demo) |
+| Privacy | Use regex or local Ollama (no cloud) |
+| Cost | Use regex or Ollama (no API fees) |
+| Simplicity | Use cloud API (openai) for easiest setup |
+
+## Configuration
+
+Set the extraction priority in your `.env` file:
+
+```env
+# Fast regex, fallback to LLM
+AI_PROVIDER_PRIORITY=demo,ollama,openai
+
+# Accurate LLM, fallback to regex
+AI_PROVIDER_PRIORITY=ollama,demo,openai
+
+# Cloud API only
+AI_PROVIDER_PRIORITY=openai,demo
+```
+
 ## Features
 
 ### Core Functionality

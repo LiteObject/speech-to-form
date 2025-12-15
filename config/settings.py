@@ -16,9 +16,11 @@ class Settings:
     """Application configuration settings."""
 
     # AI Provider Configuration
+    # Priority order: demo (regex - instant), ollama, openai
+    # Use demo first for fastest parsing, AI providers as backup for complex cases
     AI_PROVIDER_PRIORITY: List[str] = [
         provider.strip()
-        for provider in os.getenv("AI_PROVIDER_PRIORITY", "ollama,openai,demo").split(
+        for provider in os.getenv("AI_PROVIDER_PRIORITY", "demo,ollama,openai").split(
             ","
         )
     ]

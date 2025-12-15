@@ -335,6 +335,161 @@ def transcribe_audio_simple():
         )
 
 
+# Global multimodal provider instances (initialize lazily per backend)
+multimodal_providers = {}
+
+
+def get_multimodal_provider(backend: str = "openai"):
+    """Get or create multimodal provider instance for specified backend."""
+    global multimodal_providers
+
+    if backend not in multimodal_providers:
+        from providers.multimodal_provider import MultimodalProvider
+
+        if backend == "openai":
+            multimodal_providers[backend] = MultimodalProvider(
+                model_name="gpt-4o-audio-preview", backend="openai"
+            )
+        elif backend == "ollama":
+            multimodal_providers[backend] = MultimodalProvider(
+                model_name="gpt-oss:20b",  # Uses local Whisper + Ollama LLM
+                backend="ollama",
+            )
+        elif backend == "vllm":
+            multimodal_providers[backend] = MultimodalProvider(
+                model_name="fixie-ai/ultravox-v0_4",  # Audio-capable model
+                backend="vllm",
+            )
+        else:
+            logger.warning("Unknown backend '%s', falling back to openai", backend)
+            return get_multimodal_provider("openai")
+
+    return multimodal_providers[backend]
+
+
+@app.route("/transcribe_multimodal", methods=["POST"])
+def transcribe_audio_multimodal():
+    """
+    Single-stage multimodal transcription and extraction.
+
+    Supports multiple backends:
+    - openai: GPT-4o with native audio support (cloud)
+    - ollama: Local Whisper + Ollama LLM (local)
+    - vllm: vLLM with audio-capable model (local)
+
+    Expected form data:
+        - audio: Audio file (wav, mp3, m4a, etc.)
+        - backend: Backend to use (openai, ollama, vllm) - default: openai
+
+    Returns:
+        JSON: Transcription and extracted form data
+    """
+    try:
+        # Get backend from form data (default to openai for cloud)
+        backend = request.form.get("backend", "openai")
+        logger.info(
+            "Multimodal audio processing request received (backend: %s)", backend
+        )
+
+        # Check if audio file is provided
+        if "audio" not in request.files:
+            logger.error("No audio file in request")
+            return jsonify({"success": False, "error": "No audio file provided"}), 400
+
+        audio_file = request.files["audio"]
+        if audio_file.filename == "":
+            logger.error("Empty audio filename")
+            return jsonify({"success": False, "error": "No file selected"}), 400
+
+        # Validate file type
+        allowed_extensions = {"wav", "mp3", "m4a", "ogg", "flac", "webm", "mp4"}
+        filename = audio_file.filename or "audio"
+        file_ext = filename.rsplit(".", 1)[1].lower() if "." in filename else ""
+
+        if file_ext not in allowed_extensions:
+            logger.warning("Unsupported file type: %s", file_ext)
+            return (
+                jsonify(
+                    {"success": False, "error": f"Unsupported file type: {file_ext}"}
+                ),
+                400,
+            )
+
+        # Get multimodal provider for specified backend
+        multimodal = get_multimodal_provider(backend)
+        if not multimodal.is_available():
+            # Provide helpful error message based on backend
+            error_messages = {
+                "openai": "OpenAI service not available. Check OPENAI_API_KEY.",
+                "ollama": "Ollama service not available. Ensure Ollama is running and Whisper is installed.",
+                "vllm": "vLLM service not available. Ensure vLLM server is running.",
+            }
+            error_msg = error_messages.get(backend, "Multimodal service not available.")
+            logger.error("Multimodal provider not available (backend: %s)", backend)
+            return (
+                jsonify({"success": False, "error": error_msg}),
+                503,
+            )
+
+        # Create secure temporary file
+        secure_fname = secure_filename(filename)
+        with tempfile.NamedTemporaryFile(
+            delete=False, suffix=f".{file_ext}"
+        ) as tmp_file:
+            audio_file.save(tmp_file.name)
+            tmp_file_path = tmp_file.name
+
+        try:
+            # Process audio with multimodal provider (single-stage)
+            logger.info(
+                "Starting multimodal processing of file: %s (backend: %s)",
+                secure_fname,
+                backend,
+            )
+            result = multimodal.extract_from_audio(tmp_file_path)
+
+            if result:
+                logger.info("Multimodal processing successful (backend: %s)", backend)
+
+                return jsonify(
+                    {
+                        "success": True,
+                        "transcript": result.get("transcript", ""),
+                        "form_data": result.get("form_data", {}),
+                        "missing_fields": result.get("missing_fields", []),
+                        "message": f"Single-stage processing completed ({backend})",
+                        "method": "multimodal",
+                        "backend": backend,
+                        "model": multimodal.model_name,
+                    }
+                )
+            else:
+                logger.warning("Multimodal processing returned empty result")
+                return (
+                    jsonify(
+                        {
+                            "success": False,
+                            "error": "Could not process audio - please try again",
+                        }
+                    ),
+                    422,
+                )
+
+        finally:
+            # Clean up temporary file
+            if os.path.exists(tmp_file_path):
+                os.unlink(tmp_file_path)
+
+    except (ValueError, RuntimeError, OSError) as e:
+        logger.error("Error in multimodal processing: %s", str(e), exc_info=True)
+        return (
+            jsonify(
+                {"success": False, "error": "Processing failed", "details": str(e)}
+            ),
+            500,
+        )
+
+
 @app.route("/status", methods=["GET"])
 def get_status():
     """
