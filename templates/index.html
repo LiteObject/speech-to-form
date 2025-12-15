@@ -6,8 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Voice-Enabled Form</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
@@ -24,424 +28,960 @@
         h1 {
             color: #333;
             text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
             margin-bottom: 30px;
         }
 
+        /* Voice Control Section */
+        .voice-control {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            text-align: center;
+            color: white;
+        }
+
+        .record-btn {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 18px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .record-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .record-btn.recording {
+            background: #dc3545;
+            color: white;
+            animation: pulse 1.5s infinite;
+        }
+
+        .record-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+            }
+
+            50% {
+                box-shadow: 0 0 0 15px rgba(220, 53, 69, 0);
+            }
+        }
+
+        .voice-hint {
+            margin-top: 15px;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        /* Status/Progress Section */
+        .status-section {
+            margin-bottom: 20px;
+        }
+
+        .status {
+            padding: 15px 20px;
+            border-radius: 8px;
+            font-size: 15px;
+            display: none;
+        }
+
+        .status.show {
+            display: block;
+        }
+
+        .status.info {
+            background: #e3f2fd;
+            color: #1565c0;
+            border-left: 4px solid #1565c0;
+        }
+
+        .status.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-left: 4px solid #2e7d32;
+        }
+
+        .status.warning {
+            background: #fff3e0;
+            color: #ef6c00;
+            border-left: 4px solid #ef6c00;
+        }
+
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+            border-left: 4px solid #c62828;
+        }
+
+        /* Progress Steps */
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 25px;
+            padding: 0 10px;
+        }
+
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            position: relative;
+        }
+
+        .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: 60%;
+            width: 80%;
+            height: 2px;
+            background: #ddd;
+        }
+
+        .step.active:not(:last-child)::after,
+        .step.completed:not(:last-child)::after {
+            background: #667eea;
+        }
+
+        .step-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            margin-bottom: 5px;
+            z-index: 1;
+        }
+
+        .step.active .step-icon {
+            background: #667eea;
+            color: white;
+        }
+
+        .step.completed .step-icon {
+            background: #28a745;
+            color: white;
+        }
+
+        .step-label {
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+
+        .step.active .step-label {
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        /* Form Section */
         .form-section {
-            margin-bottom: 30px;
+            margin-bottom: 25px;
         }
 
         .form-field {
-            margin-bottom: 15px;
+            margin-bottom: 18px;
+            position: relative;
         }
 
         label {
             display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            color: #555;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: #444;
+        }
+
+        .field-wrapper {
+            position: relative;
         }
 
         input[type="text"],
         input[type="email"],
-        input[type="tel"],
-        input[type="number"] {
+        input[type="tel"] {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
             font-size: 16px;
-            box-sizing: border-box;
-            transition: border-color 0.3s, background-color 0.3s;
+            transition: all 0.3s ease;
         }
 
-        .field-highlight {
-            border-color: #28a745 !important;
-            background-color: #eafbe7 !important;
+        input:focus {
+            outline: none;
+            border-color: #667eea;
         }
 
-        .speech-section {
-            background-color: #f8f9fa;
-            padding: 20px;
-            border-radius: 5px;
-            margin-bottom: 20px;
+        /* Field States */
+        .form-field.filled input {
+            border-color: #28a745;
+            background: #f8fff8;
         }
 
-        .speech-controls {
+        .form-field.filled::after {
+            content: '✓';
+            position: absolute;
+            right: 12px;
+            top: 38px;
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .form-field.missing input {
+            border-color: #ef6c00;
+            background: #fff8e1;
+            animation: highlight-pulse 2s infinite;
+        }
+
+        .form-field.prompting input {
+            border-color: #667eea;
+            background: #f3e5f5;
+            animation: highlight-pulse 1.5s infinite;
+        }
+
+        @keyframes highlight-pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(103, 126, 234, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 0 0 8px rgba(103, 126, 234, 0);
+            }
+        }
+
+        /* Missing Field Prompt */
+        .field-prompt {
+            display: none;
+            margin-top: 8px;
+            padding: 12px 15px;
+            background: #f3e5f5;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .field-prompt.show {
+            display: block;
+        }
+
+        .field-prompt p {
+            margin: 0 0 10px 0;
+            color: #5e35b1;
+            font-weight: 500;
+        }
+
+        .prompt-actions {
             display: flex;
             gap: 10px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
         }
 
-        button {
-            padding: 12px 24px;
-            background-color: #007bff;
+        .prompt-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .prompt-btn.voice {
+            background: #667eea;
+            color: white;
+        }
+
+        .prompt-btn.skip {
+            background: #e0e0e0;
+            color: #666;
+        }
+
+        .prompt-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Completion Message */
+        .completion {
+            display: none;
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            border-radius: 10px;
+            color: white;
+            margin-top: 20px;
+        }
+
+        .completion.show {
+            display: block;
+        }
+
+        .completion h2 {
+            margin: 0 0 10px 0;
+        }
+
+        .completion p {
+            margin: 0;
+            opacity: 0.9;
+        }
+
+        /* Reset Button */
+        .reset-btn {
+            display: block;
+            margin: 20px auto 0;
+            padding: 10px 25px;
+            background: #6c757d;
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 14px;
         }
 
-        button:hover {
-            background-color: #0056b3;
+        .reset-btn:hover {
+            background: #5a6268;
         }
 
-        button:disabled {
-            background-color: #ccc;
-            cursor: not-allowed;
-        }
-
-        .recording {
-            background-color: #dc3545 !important;
-        }
-
-        .recording:hover {
-            background-color: #c82333 !important;
-        }
-
-        .status {
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 5px;
-            font-weight: bold;
-        }
-
-        .status.success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .status.error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .status.info {
-            background-color: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-
-        .transcript {
-            background-color: #ffffff;
-            border: 1px solid #ddd;
-            padding: 10px;
-            border-radius: 5px;
-            min-height: 50px;
-            margin-top: 10px;
+        /* Transcript Preview */
+        .transcript-preview {
+            display: none;
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
             font-style: italic;
         }
 
-        .form-data {
-            background-color: #e9ecef;
-            padding: 15px;
-            border-radius: 5px;
-            margin-top: 20px;
-        }
-
-        .completion-message {
-            text-align: center;
-            padding: 20px;
-            background-color: #d4edda;
-            color: #155724;
-            border-radius: 5px;
-            margin-top: 20px;
-        }
-
-        .microphone-icon {
-            font-size: 18px;
-            margin-right: 5px;
-        }
-
-        .instructions {
-            background-color: #e3f2fd;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-        }
-
-        .instructions h3 {
-            margin-top: 0;
-            color: #1976d2;
+        .transcript-preview.show {
+            display: block;
         }
     </style>
 </head>
 
 <body>
     <div class="container">
-        <h1>Voice-Enabled Form Demo</h1>
+        <h1>Voice-Enabled Form</h1>
+        <p class="subtitle">Speak naturally to fill out the form</p>
 
-        <div class="instructions">
-            <h3>How to use:</h3>
-            <ul>
-                <li>Click "Start Recording" and speak your information</li>
-                <li>Example: "My name is John Doe, email john@example.com, phone 555-123-4567, I live at 123 Main
-                    Street, New York"</li>
-                <li>The system will extract the information and ask for any missing details</li>
-            </ul>
-        </div>
-
-        <div class="speech-section">
-            <h3>Voice Input</h3>
-            <div class="speech-controls">
-                <button id="startRecord" onclick="startRecording()">
-                    <span class="microphone-icon">🎤</span>Start Recording
-                </button>
-                <button id="stopRecord" onclick="stopRecording()" disabled>
-                    <span class="microphone-icon">⏹️</span>Stop Recording
-                </button>
-                <button onclick="resetForm()">
-                    <span class="microphone-icon">🔄</span>Reset Form
-                </button>
+        <!-- Progress Steps -->
+        <div class="progress-steps">
+            <div class="step" id="step-record">
+                <div class="step-icon">1</div>
+                <div class="step-label">Record</div>
             </div>
-
-            <div id="status" class="status" style="display: none;"></div>
-
-            <div>
-                <strong>Transcript:</strong>
-                <div id="transcript" class="transcript">Click "Start Recording" to begin...</div>
+            <div class="step" id="step-process">
+                <div class="step-icon">2</div>
+                <div class="step-label">Process</div>
+            </div>
+            <div class="step" id="step-fill">
+                <div class="step-icon">3</div>
+                <div class="step-label">Fill Fields</div>
+            </div>
+            <div class="step" id="step-complete">
+                <div class="step-icon">4</div>
+                <div class="step-label">Complete</div>
             </div>
         </div>
 
+        <!-- Voice Control -->
+        <div class="voice-control">
+            <button class="record-btn" id="recordBtn" onclick="startRecording()">
+                <span id="recordIcon">🎤</span>
+                <span id="recordText">Start Recording</span>
+            </button>
+            <div class="voice-hint" id="voiceHint">
+                Say something like: "My name is John Smith, email john@example.com, phone 555-123-4567, address 123 Main
+                Street"
+            </div>
+            <div class="transcript-preview" id="transcriptPreview"></div>
+        </div>
+
+        <!-- Status Section -->
+        <div class="status-section">
+            <div class="status" id="status"></div>
+        </div>
+
+        <!-- Form Section -->
         <div class="form-section">
-            <h3>Form Information</h3>
-            <div class="form-field">
-                <label for="name">Full Name:</label>
-                <input type="text" id="name" name="name" readonly>
+            <div class="form-field" id="field-name">
+                <label for="name">Full Name</label>
+                <div class="field-wrapper">
+                    <input type="text" id="name" name="name" placeholder="Your full name">
+                </div>
+                <div class="field-prompt" id="prompt-name">
+                    <p>🎤 Please say your <strong>name</strong></p>
+                    <div class="prompt-actions">
+                        <button class="prompt-btn voice" onclick="recordForField('name')">🎤 Speak</button>
+                        <button class="prompt-btn skip" onclick="skipField('name')">Skip</button>
+                    </div>
+                </div>
             </div>
-            <div class="form-field">
-                <label for="email">Email:</label>
-                <input type="email" id="email" name="email" readonly>
+
+            <div class="form-field" id="field-email">
+                <label for="email">Email Address</label>
+                <div class="field-wrapper">
+                    <input type="email" id="email" name="email" placeholder="your.email@example.com">
+                </div>
+                <div class="field-prompt" id="prompt-email">
+                    <p>🎤 Please say your <strong>email address</strong></p>
+                    <div class="prompt-actions">
+                        <button class="prompt-btn voice" onclick="recordForField('email')">🎤 Speak</button>
+                        <button class="prompt-btn skip" onclick="skipField('email')">Skip</button>
+                    </div>
+                </div>
             </div>
-            <div class="form-field">
-                <label for="phone">Phone:</label>
-                <input type="tel" id="phone" name="phone" readonly>
+
+            <div class="form-field" id="field-phone">
+                <label for="phone">Phone Number</label>
+                <div class="field-wrapper">
+                    <input type="tel" id="phone" name="phone" placeholder="555-123-4567">
+                </div>
+                <div class="field-prompt" id="prompt-phone">
+                    <p>🎤 Please say your <strong>phone number</strong></p>
+                    <div class="prompt-actions">
+                        <button class="prompt-btn voice" onclick="recordForField('phone')">🎤 Speak</button>
+                        <button class="prompt-btn skip" onclick="skipField('phone')">Skip</button>
+                    </div>
+                </div>
             </div>
-            <div class="form-field">
-                <label for="address">Address:</label>
-                <input type="text" id="address" name="address" readonly>
+
+            <div class="form-field" id="field-address">
+                <label for="address">Address</label>
+                <div class="field-wrapper">
+                    <input type="text" id="address" name="address" placeholder="Your street address">
+                </div>
+                <div class="field-prompt" id="prompt-address">
+                    <p>🎤 Please say your <strong>address</strong></p>
+                    <div class="prompt-actions">
+                        <button class="prompt-btn voice" onclick="recordForField('address')">🎤 Speak</button>
+                        <button class="prompt-btn skip" onclick="skipField('address')">Skip</button>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div id="formData" class="form-data" style="display: none;">
-            <h3>Extracted Data (JSON)</h3>
-            <pre id="jsonData"></pre>
+        <!-- Completion Message -->
+        <div class="completion" id="completion">
+            <h2>✅ Form Complete!</h2>
+            <p>All fields have been filled successfully.</p>
         </div>
+
+        <button class="reset-btn" onclick="resetForm()">🔄 Reset Form</button>
     </div>
 
     <script>
-        let recognition;
+        // ============================================
+        // State Management
+        // ============================================
+        const FIELDS = ['name', 'email', 'phone', 'address'];
         let isRecording = false;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let stream = null;
+        let audioContext = null;
+        let analyser = null;
+        let silenceTimer = null;
+        let recordingStartTime = 0;
+        let currentMode = 'all'; // 'all' or 'single'
+        let currentPromptField = null;
+        let missingFieldsQueue = [];
 
-        // Check for browser support
-        if ('webkitSpeechRecognition' in window) {
-            recognition = new webkitSpeechRecognition();
-        } else if ('SpeechRecognition' in window) {
-            recognition = new SpeechRecognition();
-        } else {
-            showStatus('Speech recognition not supported in this browser', 'error');
+        // Silence detection settings
+        const SILENCE_THRESHOLD = 0.08;
+        const SILENCE_DELAY = 1500; // 1.5 seconds of silence
+        const MIN_RECORDING_TIME = 800;
+
+        // ============================================
+        // UI Helpers
+        // ============================================
+        function showStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status show ${type}`;
         }
 
-        if (recognition) {
-            recognition.continuous = true;
-            recognition.interimResults = true;
-            recognition.lang = 'en-US';
+        function hideStatus() {
+            document.getElementById('status').className = 'status';
+        }
 
-            recognition.onresult = function (event) {
-                let finalTranscript = '';
-                let interimTranscript = '';
+        function setStep(stepId) {
+            document.querySelectorAll('.step').forEach(s => {
+                s.classList.remove('active', 'completed');
+            });
 
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    const transcript = event.results[i][0].transcript;
-                    if (event.results[i].isFinal) {
-                        finalTranscript += transcript;
-                    } else {
-                        interimTranscript += transcript;
-                    }
+            const steps = ['step-record', 'step-process', 'step-fill', 'step-complete'];
+            const currentIndex = steps.indexOf(stepId);
+
+            steps.forEach((step, index) => {
+                const el = document.getElementById(step);
+                if (index < currentIndex) {
+                    el.classList.add('completed');
+                } else if (index === currentIndex) {
+                    el.classList.add('active');
                 }
+            });
+        }
 
-                document.getElementById('transcript').innerHTML =
-                    finalTranscript + '<span style="color: #999;">' + interimTranscript + '</span>';
+        function updateRecordButton(recording) {
+            const btn = document.getElementById('recordBtn');
+            const icon = document.getElementById('recordIcon');
+            const text = document.getElementById('recordText');
 
-                if (finalTranscript) {
-                    processTranscript(finalTranscript);
-                }
-            };
+            if (recording) {
+                btn.classList.add('recording');
+                icon.textContent = '⏹️';
+                text.textContent = 'Stop Recording';
+            } else {
+                btn.classList.remove('recording');
+                icon.textContent = '🎤';
+                text.textContent = 'Start Recording';
+            }
+        }
 
-            recognition.onerror = function (event) {
-                showStatus('Speech recognition error: ' + event.error, 'error');
+        function setFieldState(fieldId, state) {
+            const field = document.getElementById(`field-${fieldId}`);
+            field.classList.remove('filled', 'missing', 'prompting');
+            if (state) {
+                field.classList.add(state);
+            }
+        }
+
+        function showFieldPrompt(fieldId) {
+            // Hide all prompts first
+            document.querySelectorAll('.field-prompt').forEach(p => p.classList.remove('show'));
+
+            // Show specific prompt
+            const prompt = document.getElementById(`prompt-${fieldId}`);
+            if (prompt) {
+                prompt.classList.add('show');
+                setFieldState(fieldId, 'prompting');
+                document.getElementById(fieldId).focus();
+            }
+        }
+
+        function hideFieldPrompt(fieldId) {
+            const prompt = document.getElementById(`prompt-${fieldId}`);
+            if (prompt) {
+                prompt.classList.remove('show');
+            }
+        }
+
+        function showCompletion() {
+            document.getElementById('completion').classList.add('show');
+            setStep('step-complete');
+            showStatus('All fields have been captured!', 'success');
+        }
+
+        // ============================================
+        // Recording Functions
+        // ============================================
+        async function startRecording() {
+            if (isRecording) {
                 stopRecording();
-            };
-
-            recognition.onend = function () {
-                if (isRecording) {
-                    // Restart if we're still supposed to be recording
-                    recognition.start();
-                }
-            };
-        }
-
-        function startRecording() {
-            if (!recognition) {
-                showStatus('Speech recognition not supported', 'error');
                 return;
             }
 
-            isRecording = true;
-            recognition.start();
+            try {
+                currentMode = 'all';
+                setStep('step-record');
+                showStatus('🎤 Listening... speak naturally about all your information', 'info');
 
-            document.getElementById('startRecord').disabled = true;
-            document.getElementById('stopRecord').disabled = false;
-            document.getElementById('startRecord').classList.add('recording');
+                stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    }
+                });
 
-            showStatus('Recording... Speak now!', 'info');
-            document.getElementById('transcript').innerHTML = 'Listening...';
+                // Set up audio analysis
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                const source = audioContext.createMediaStreamSource(stream);
+                source.connect(analyser);
+                analyser.fftSize = 512;
+
+                mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'audio/webm;codecs=opus'
+                });
+
+                audioChunks = [];
+                isRecording = true;
+                recordingStartTime = Date.now();
+
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) audioChunks.push(e.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const duration = Date.now() - recordingStartTime;
+
+                    if (audioBlob.size > 1000 && duration > MIN_RECORDING_TIME) {
+                        if (currentMode === 'all') {
+                            await processFullRecording(audioBlob);
+                        } else {
+                            await processFieldRecording(audioBlob, currentPromptField);
+                        }
+                    } else {
+                        showStatus('Recording too short. Please try again.', 'warning');
+                    }
+
+                    cleanupRecording();
+                };
+
+                mediaRecorder.start(100);
+                updateRecordButton(true);
+
+                // Start silence detection
+                detectSilence();
+
+            } catch (error) {
+                console.error('Recording failed:', error);
+                showStatus('Microphone access denied. Please allow microphone access.', 'error');
+                cleanupRecording();
+            }
         }
 
         function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                if (silenceTimer) {
+                    clearTimeout(silenceTimer);
+                    silenceTimer = null;
+                }
+                mediaRecorder.stop();
+                isRecording = false;
+                updateRecordButton(false);
+            }
+        }
+
+        function cleanupRecording() {
             isRecording = false;
-            if (recognition) {
-                recognition.stop();
+            updateRecordButton(false);
+
+            if (stream) {
+                stream.getTracks().forEach(t => t.stop());
+                stream = null;
             }
-
-            document.getElementById('startRecord').disabled = false;
-            document.getElementById('stopRecord').disabled = true;
-            document.getElementById('startRecord').classList.remove('recording');
-
-            showStatus('Recording stopped', 'info');
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+            }
+            if (silenceTimer) {
+                clearTimeout(silenceTimer);
+                silenceTimer = null;
+            }
         }
 
-        function processTranscript(transcript) {
-            showStatus('Processing speech...', 'info');
+        let lastSoundTime = 0;
 
-            fetch('/process_speech', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ text: transcript })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        updateFormFields(data.form_data);
+        function detectSilence() {
+            if (!isRecording || !analyser) return;
 
-                        if (data.complete) {
-                            showStatus('Form completed successfully!', 'success');
-                            document.getElementById('formData').style.display = 'block';
-                            document.getElementById('jsonData').textContent = JSON.stringify(data.form_data, null, 2);
-                            stopRecording();
-                        } else {
-                            showStatus(data.message, 'info');
-                        }
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+            analyser.getByteFrequencyData(dataArray);
+
+            const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length / 255;
+            const now = Date.now();
+
+            if (average > SILENCE_THRESHOLD) {
+                lastSoundTime = now;
+            }
+
+            const silenceDuration = now - lastSoundTime;
+            const recordingDuration = now - recordingStartTime;
+
+            if (silenceDuration > SILENCE_DELAY && recordingDuration > MIN_RECORDING_TIME) {
+                console.log('Silence detected, stopping recording');
+                showStatus('🔄 Processing your speech...', 'info');
+                stopRecording();
+                return;
+            }
+
+            // Visual feedback
+            if (silenceDuration > 500 && silenceDuration < SILENCE_DELAY) {
+                const remaining = Math.ceil((SILENCE_DELAY - silenceDuration) / 1000);
+                showStatus(`🎤 Listening... (auto-stop in ${remaining}s of silence)`, 'info');
+            }
+
+            requestAnimationFrame(detectSilence);
+        }
+
+        // ============================================
+        // Processing Functions
+        // ============================================
+        async function processFullRecording(audioBlob) {
+            setStep('step-process');
+            showStatus('🔄 Transcribing and extracting fields...', 'info');
+
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'recording.webm');
+
+            try {
+                const response = await fetch('/transcribe', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                console.log('Transcription result:', result);
+
+                if (response.ok && result.success) {
+                    // Show transcript
+                    const preview = document.getElementById('transcriptPreview');
+                    preview.textContent = `"${result.transcript}"`;
+                    preview.classList.add('show');
+
+                    // Fill fields
+                    setStep('step-fill');
+                    fillFieldsFromResult(result.form_data || {});
+
+                    // Check for missing fields
+                    const missing = result.missing_fields || findMissingFields();
+
+                    if (missing.length > 0) {
+                        missingFieldsQueue = [...missing];
+                        showStatus(`Filled ${FIELDS.length - missing.length} of ${FIELDS.length} fields. Let's capture the rest.`, 'warning');
+                        promptNextMissingField();
                     } else {
-                        showStatus('Error: ' + data.message, 'error');
+                        showCompletion();
                     }
-                })
-                .catch(error => {
-                    showStatus('Network error: ' + error, 'error');
+                } else {
+                    showStatus(result.error || 'Failed to process speech', 'error');
+                }
+            } catch (error) {
+                console.error('Processing error:', error);
+                showStatus('Error processing recording. Please try again.', 'error');
+            }
+        }
+
+        function fillFieldsFromResult(formData) {
+            FIELDS.forEach(field => {
+                const value = formData[field];
+                if (value && value.trim()) {
+                    document.getElementById(field).value = value.trim();
+                    setFieldState(field, 'filled');
+                }
+            });
+        }
+
+        function findMissingFields() {
+            return FIELDS.filter(field => {
+                const value = document.getElementById(field).value;
+                return !value || !value.trim();
+            });
+        }
+
+        // ============================================
+        // Missing Field Prompts
+        // ============================================
+        function promptNextMissingField() {
+            if (missingFieldsQueue.length === 0) {
+                // All fields complete
+                showCompletion();
+                return;
+            }
+
+            const fieldId = missingFieldsQueue[0];
+            currentPromptField = fieldId;
+
+            // Mark remaining as missing
+            missingFieldsQueue.forEach(f => setFieldState(f, 'missing'));
+
+            // Show prompt for first missing field
+            showFieldPrompt(fieldId);
+            showStatus(`Please provide your ${fieldId}`, 'info');
+        }
+
+        async function recordForField(fieldId) {
+            currentMode = 'single';
+            currentPromptField = fieldId;
+
+            hideFieldPrompt(fieldId);
+            showStatus(`🎤 Listening for your ${fieldId}...`, 'info');
+
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    audio: { echoCancellation: true, noiseSuppression: true }
                 });
-        }
 
-        function updateFormFields(formData) {
-            const fields = ['name', 'email', 'phone', 'address'];
-            let nextEmptyField = null;
-            fields.forEach(field => {
-                const input = document.getElementById(field);
-                // Remove highlight from all fields first
-                input.classList.remove('field-highlight');
-                if (formData[field]) {
-                    input.value = formData[field];
-                }
-                if (!input.value && !nextEmptyField) {
-                    nextEmptyField = input;
-                }
-            });
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                const source = audioContext.createMediaStreamSource(stream);
+                source.connect(analyser);
+                analyser.fftSize = 512;
 
-            // Highlight and focus the next empty field
-            if (nextEmptyField) {
-                nextEmptyField.classList.add('field-highlight');
-                nextEmptyField.focus();
-                nextEmptyField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'audio/webm;codecs=opus'
+                });
+
+                audioChunks = [];
+                isRecording = true;
+                recordingStartTime = Date.now();
+                lastSoundTime = Date.now();
+
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) audioChunks.push(e.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    await processFieldRecording(audioBlob, currentPromptField);
+                    cleanupRecording();
+                };
+
+                mediaRecorder.start(100);
+                detectSilence();
+
+            } catch (error) {
+                console.error('Field recording failed:', error);
+                showStatus('Microphone error. Please try again.', 'error');
+                showFieldPrompt(fieldId);
             }
         }
 
-        // Highlight the next empty field (initial or on reset)
-        function highlightNextField() {
-            const fields = ['name', 'email', 'phone', 'address'];
-            let nextEmpty = null;
-            fields.forEach(field => {
-                const input = document.getElementById(field);
-                input.classList.remove('field-highlight');
-                if (!input.value && !nextEmpty) {
-                    nextEmpty = input;
+        async function processFieldRecording(audioBlob, fieldId) {
+            showStatus(`🔄 Processing ${fieldId}...`, 'info');
+
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'recording.webm');
+
+            try {
+                const response = await fetch('/transcribe_simple', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                console.log('Field transcription:', result);
+
+                if (response.ok && result.success && result.transcript) {
+                    const input = document.getElementById(fieldId);
+                    input.value = result.transcript.trim();
+                    setFieldState(fieldId, 'filled');
+                    hideFieldPrompt(fieldId);
+
+                    // Remove from queue and continue
+                    missingFieldsQueue = missingFieldsQueue.filter(f => f !== fieldId);
+
+                    if (missingFieldsQueue.length > 0) {
+                        showStatus(`Got it! ${missingFieldsQueue.length} field(s) remaining.`, 'success');
+                        setTimeout(() => promptNextMissingField(), 500);
+                    } else {
+                        showCompletion();
+                    }
+                } else {
+                    showStatus('Could not capture that. Please try again.', 'warning');
+                    showFieldPrompt(fieldId);
                 }
-            });
-            if (nextEmpty) {
-                nextEmpty.classList.add('field-highlight');
-                nextEmpty.focus();
-                nextEmpty.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } catch (error) {
+                console.error('Field processing error:', error);
+                showStatus('Error processing. Please try again.', 'error');
+                showFieldPrompt(fieldId);
             }
         }
 
+        function skipField(fieldId) {
+            hideFieldPrompt(fieldId);
+            setFieldState(fieldId, '');
+
+            // Remove from queue
+            missingFieldsQueue = missingFieldsQueue.filter(f => f !== fieldId);
+
+            if (missingFieldsQueue.length > 0) {
+                promptNextMissingField();
+            } else {
+                // Check if any fields have values
+                const filledCount = FIELDS.filter(f => document.getElementById(f).value.trim()).length;
+                if (filledCount > 0) {
+                    showCompletion();
+                } else {
+                    showStatus('Form is empty. Click "Start Recording" to try again.', 'warning');
+                    setStep('step-record');
+                }
+            }
+        }
+
+        // ============================================
+        // Reset Function
+        // ============================================
         function resetForm() {
-            fetch('/reset_form', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Clear form fields
-                        const fields = ['name', 'email', 'phone', 'address'];
-                        fields.forEach(field => {
-                            document.getElementById(field).value = '';
-                        });
+            // Clear all inputs
+            FIELDS.forEach(field => {
+                document.getElementById(field).value = '';
+                setFieldState(field, '');
+                hideFieldPrompt(field);
+            });
 
-                        // Clear transcript and status
-                        document.getElementById('transcript').innerHTML = 'Click "Start Recording" to begin...';
-                        document.getElementById('status').style.display = 'none';
-                        document.getElementById('formData').style.display = 'none';
+            // Reset state
+            missingFieldsQueue = [];
+            currentPromptField = null;
+            currentMode = 'all';
 
-                        showStatus('Form reset successfully', 'success');
+            // Reset UI
+            document.getElementById('transcriptPreview').classList.remove('show');
+            document.getElementById('completion').classList.remove('show');
+            hideStatus();
+            setStep('step-record');
 
-                        // Highlight first field after reset
-                        highlightNextField();
+            cleanupRecording();
+        }
 
-                        // Stop recording if active
-                        if (isRecording) {
-                            stopRecording();
+        // ============================================
+        // Manual Input Support
+        // ============================================
+        FIELDS.forEach(field => {
+            const input = document.getElementById(field);
+            input.addEventListener('input', () => {
+                if (input.value.trim()) {
+                    setFieldState(field, 'filled');
+
+                    // If this was the prompted field, move to next
+                    if (currentPromptField === field) {
+                        hideFieldPrompt(field);
+                        missingFieldsQueue = missingFieldsQueue.filter(f => f !== field);
+
+                        if (missingFieldsQueue.length > 0) {
+                            setTimeout(() => promptNextMissingField(), 300);
+                        } else {
+                            showCompletion();
                         }
                     }
-                })
-                .catch(error => {
-                    showStatus('Error resetting form: ' + error, 'error');
-                });
-        }
-
-        function showStatus(message, type) {
-            const statusDiv = document.getElementById('status');
-            statusDiv.textContent = message;
-            statusDiv.className = 'status ' + type;
-            statusDiv.style.display = 'block';
-
-            // Auto-hide success and info messages after 3 seconds
-            if (type === 'success' || type === 'info') {
-                setTimeout(() => {
-                    statusDiv.style.display = 'none';
-                }, 3000);
-            }
-        }
-
-        // Initialize the app
-        document.addEventListener('DOMContentLoaded', function () {
-            if (!recognition) {
-                showStatus('Speech recognition not supported in this browser. Please use Chrome, Edge, or Safari.', 'error');
-            }
-            // Highlight first field on load
-            highlightNextField();
+                } else {
+                    setFieldState(field, '');
+                }
+            });
         });
+
+        // Initialize
+        setStep('step-record');
     </script>
 </body>
 

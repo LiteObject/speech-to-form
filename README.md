@@ -2,7 +2,7 @@
 
 This is a Flask web application that demonstrates intelligent voice-enabled form filling using speech recognition and AI-powered text processing with real-time field highlighting and step-by-step guidance.
 
-## ✨ Features
+## Features
 
 ### Core Functionality
 - **Smart Web Form**: Interactive form with fields for name, email, phone, and address
@@ -19,7 +19,7 @@ This is a Flask web application that demonstrates intelligent voice-enabled form
 - **Health Check Endpoint**: Monitor application and OpenAI API connectivity status
 - **Graceful Fallback**: Seamless switch to regex extraction when OpenAI is unavailable
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Project Structure
 ```
@@ -62,7 +62,7 @@ python app.py
 
 The application will be available at `http://localhost:5000`
 
-## 🎤 How to Use
+## How to Use
 
 ### Step-by-Step Voice Form Filling
 1. **Open the Application**: Navigate to `http://localhost:5000` in your browser
@@ -84,7 +84,7 @@ The application intelligently handles various speech patterns:
 **Combined Information:**
 - "Hi, I'm Sarah Johnson, my email is sarah at gmail dot com, phone 555-987-6543, and I live at 456 Oak Avenue, Chicago"
 
-## 🔧 Technical Details
+## Technical Details
 
 ### Speech Recognition
 - **Web Speech API**: Real-time continuous speech recognition
@@ -110,7 +110,7 @@ The application intelligently handles various speech patterns:
 - **Reset Functionality**: Clean form state reset with field re-highlighting
 - **Error Recovery**: Graceful handling of API failures and network issues
 
-## ⚙️ API Endpoints
+## API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -119,7 +119,7 @@ The application intelligently handles various speech patterns:
 | `/reset_form` | POST | Reset form to initial state |
 | `/health` | GET | System health check and OpenAI connectivity status |
 
-## 🛠️ Customization
+## Customization
 
 ### Adding New Form Fields
 1. Update `REQUIRED_FIELDS` dictionary in `app.py`
@@ -138,7 +138,7 @@ Modify the regex patterns in the `_demo_extraction` method to handle your specif
 - Update field highlighting styles via `.field-highlight` class
 - Customize status messages and user guidance text
 
-## 🔒 Security Considerations
+## Security Considerations
 
 For production deployment, implement:
 - **Input Validation**: Sanitize and validate all user inputs
@@ -149,7 +149,7 @@ For production deployment, implement:
 - **Content Security Policy**: Prevent XSS attacks
 - **Logging Security**: Ensure logs don't contain sensitive information
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Speech Recognition Issues
 - **Not Working**: Ensure you're using a supported browser (Chrome, Edge, Safari)
@@ -174,7 +174,7 @@ For production deployment, implement:
 - **Browser Console**: Monitor for JavaScript errors and network issues
 - **Network Tab**: Inspect API requests and responses in browser dev tools
 
-## 📋 Dependencies
+## Dependencies
 
 ```txt
 Flask==2.3.3
@@ -182,17 +182,17 @@ openai==1.3.0
 python-dotenv==1.0.0
 ```
 
-## 🌐 Browser Compatibility
+## Browser Compatibility
 
 | Browser | Support Level | Notes |
 |---------|---------------|-------|
-| Chrome | ✅ Excellent | Full Web Speech API support |
-| Edge | ✅ Excellent | Full Web Speech API support |
-| Safari | ✅ Good | Web Speech API supported |
-| Firefox | ⚠️ Limited | May require additional configuration |
-| IE | ❌ Not Supported | Use modern browser |
+| Chrome | Excellent | Full Web Speech API support |
+| Edge | Excellent | Full Web Speech API support |
+| Safari | Good | Web Speech API supported |
+| Firefox | Limited | May require additional configuration |
+| IE | Not Supported | Use modern browser |
 
-## 📝 Recent Updates
+## Recent Updates
 
 - **Field Highlighting**: Added step-by-step visual guidance
 - **Email Intelligence**: Improved speech-to-email conversion patterns

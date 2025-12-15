@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice-Enabled Form</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .form-section {
+            margin-bottom: 30px;
+        }
+
+        .form-field {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="tel"],
+        input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+            transition: border-color 0.3s, background-color 0.3s;
+            cursor: pointer;
+        }
+
+        input[type="text"]:hover,
+        input[type="email"]:hover,
+        input[type="tel"]:hover,
+        input[type="number"]:hover {
+            border-color: #007bff;
+            background-color: #f8f9fa;
+        }
+
+        .field-recording {
+            border-color: #dc3545 !important;
+            background-color: #fff5f5 !important;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+            }
+        }
+
+        .field-highlight {
+            border-color: #28a745 !important;
+            background-color: #eafbe7 !important;
+        }
+
+        .speech-section {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .recording {
+            background-color: #dc3545 !important;
+        }
+
+        .recording:hover {
+            background-color: #c82333 !important;
+        }
+
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .form-data {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+
+        .completion-message {
+            text-align: center;
+            padding: 20px;
+            background-color: #d4edda;
+            color: #155724;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+
+        .microphone-icon {
+            font-size: 18px;
+            margin-right: 5px;
+        }
+
+        .instructions {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .instructions h3 {
+            margin-top: 0;
+            color: #1976d2;
+        }
+
+        /* Form field styling for interactivity */
+        .form-field input {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background-color: #fff;
+        }
+
+        .form-field input:hover {
+            border-color: #007bff;
+            background-color: #f8f9fa;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 5px rgba(0, 123, 255, 0.2);
+        }
+
+        .form-field input.recording {
+            border-color: #dc3545;
+            background-color: #fff5f5;
+            animation: pulse 1.5s infinite;
+        }
+
+        .form-field input.filled {
+            border-color: #28a745;
+            background-color: #f8fff8;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Voice-Enabled Form Demo</h1>
+
+        <div class="instructions">
+            <h3>How to use:</h3>
+            <ul>
+                <li>Click on any form field below to start recording for that specific field</li>
+                <li>Speak clearly and the system will automatically stop after 3 seconds of silence</li>
+                <li>Example: Click "Name" field → Say "John Smith" → Field fills automatically</li>
+                <li>Move to the next field and repeat</li>
+                <li>Much more accurate than trying to fill everything at once!</li>
+            </ul>
+        </div>
+
+        <div class="speech-section">
+            <div id="status" class="status" style="display: none;"></div>
+        </div>
+
+        <div class="form-section">
+            <h3>Form Information</h3>
+            <div class="form-field">
+                <label for="name">Full Name:</label>
+                <input type="text" id="name" name="name" placeholder="Click here and speak your name"
+                    onclick="startFieldRecording('name')">
+            </div>
+            <div class="form-field">
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" placeholder="Click here and speak your email"
+                    onclick="startFieldRecording('email')">
+            </div>
+            <div class="form-field">
+                <label for="phone">Phone:</label>
+                <input type="tel" id="phone" name="phone" placeholder="Click here and speak your phone"
+                    onclick="startFieldRecording('phone')">
+            </div>
+            <div class="form-field">
+                <label for="address">Address:</label>
+                <input type="text" id="address" name="address" placeholder="Click here and speak your address"
+                    onclick="startFieldRecording('address')">
+            </div>
+        </div>
+
+        <div id="formData" class="form-data" style="display: none;">
+            <h3>Extracted Data (JSON)</h3>
+            <pre id="jsonData"></pre>
+        </div>
+    </div>
+
+    <script>
+        let recognition;
+        let isRecording = false;
+
+        // Simple field-based recording variables
+        let mediaRecorder;
+        let audioChunks = [];
+        let stream;
+        let silenceTimer;
+        let audioContext;
+        let analyser;
+        let microphone;
+        let dataArray;
+        let silenceThreshold = 0.1;
+        let silenceDelay = 1200; // Reduced from 3000ms to 1200ms (1.2 seconds)
+        let lastSoundTime = 0;
+        let currentField = null; // Track which field we're recording for
+        let switchingFields = false; // Flag to prevent processing when switching fields
+        let recordingStartTime = 0; // Track when recording started
+        let minimumRecordingTime = 600; // Reduced from 1000ms to 600ms
+
+        // Check for browser support
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+        } else if ('SpeechRecognition' in window) {
+            recognition = new SpeechRecognition();
+        } else {
+            showStatus('Speech recognition not supported in this browser', 'error');
+        }
+
+        if (recognition) {
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            recognition.onresult = function (event) {
+                let finalTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                    }
+                }
+
+                if (finalTranscript) {
+                    processTranscript(finalTranscript);
+                }
+            };
+
+            recognition.onerror = function (event) {
+                showStatus('Speech recognition error: ' + event.error, 'error');
+                stopRecording();
+            };
+
+            recognition.onend = function () {
+                if (isRecording) {
+                    // Restart if we're still supposed to be recording
+                    recognition.start();
+                }
+            };
+        }
+
+        function startFieldRecording(fieldName) {
+            console.log(`startFieldRecording called for: ${fieldName}, isRecording: ${isRecording}, currentField: ${currentField}`);
+
+            // If already recording for a different field, stop current recording and switch
+            if (isRecording && currentField !== fieldName) {
+                console.log(`Switching from ${currentField} to ${fieldName}`);
+                switchingFields = true;
+
+                // Stop current recording
+                if (mediaRecorder && isRecording) {
+                    // Clear any pending silence timer
+                    if (silenceTimer) {
+                        clearTimeout(silenceTimer);
+                        silenceTimer = null;
+                    }
+                    mediaRecorder.stop();
+                    isRecording = false;
+                }
+
+                // Clean up current field visual
+                if (currentField) {
+                    const oldInput = document.getElementById(currentField);
+                    if (oldInput) {
+                        oldInput.classList.remove('recording');
+                    }
+                }
+
+                // Small delay to ensure cleanup completes, then start new recording
+                setTimeout(() => {
+                    switchingFields = false;
+                    startNewFieldRecording(fieldName);
+                }, 100);
+                return;
+            }
+
+            // If already recording for the same field, stop the recording
+            if (isRecording && currentField === fieldName) {
+                console.log(`Stopping recording for ${fieldName}`);
+                if (mediaRecorder && isRecording) {
+                    if (silenceTimer) {
+                        clearTimeout(silenceTimer);
+                        silenceTimer = null;
+                    }
+                    mediaRecorder.stop();
+                    isRecording = false;
+                }
+                return;
+            }
+
+            // Start fresh recording
+            startNewFieldRecording(fieldName);
+        }
+
+        function startNewFieldRecording(fieldName) {
+            console.log(`Starting new field recording for: ${fieldName}`);
+            currentField = fieldName;
+            const input = document.getElementById(fieldName);
+
+            // Visual feedback - use correct CSS class
+            input.classList.add('recording');
+            input.placeholder = 'Recording... speak now!';
+
+            // Start recording
+            tryWhisperRecording();
+        }
+
+        async function tryWhisperRecording() {
+            console.log(`tryWhisperRecording called for field: ${currentField}`);
+            try {
+                // Request microphone access
+                stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    }
+                });
+                console.log('Microphone access granted');
+
+                // Set up audio analysis for silence detection
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                microphone = audioContext.createMediaStreamSource(stream);
+                microphone.connect(analyser);
+
+                analyser.fftSize = 512;
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+                mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'audio/webm;codecs=opus'
+                });
+
+                audioChunks = [];
+                isRecording = true;
+                lastSoundTime = Date.now();
+                recordingStartTime = Date.now(); // Track recording start time
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = async () => {
+                    console.log('MediaRecorder stopped, processing audio...');
+
+                    // Only process audio if we're not switching fields
+                    if (!switchingFields) {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const recordingDuration = Date.now() - recordingStartTime;
+
+                        console.log(`Audio blob size: ${audioBlob.size}, recording duration: ${recordingDuration}ms`);
+
+                        // Only process if we have meaningful audio data
+                        if (audioBlob.size > 1000 && recordingDuration > 500) { // At least 1KB and 0.5 seconds
+                            await sendAudioToWhisperForField(audioBlob);
+                        } else {
+                            console.warn(`Skipping processing - insufficient audio: ${audioBlob.size} bytes, ${recordingDuration}ms`);
+                            showStatus(`❌ Recording too short. Please speak for at least 1 second.`, 'warning');
+                            resetFieldState();
+                        }
+                    } else {
+                        console.log('Skipping audio processing - switching fields');
+                        resetFieldState();
+                    }
+                };
+
+                mediaRecorder.onerror = (event) => {
+                    console.error('MediaRecorder error:', event.error);
+                    showStatus(`❌ Recording error: ${event.error.message}`, 'error');
+                    resetFieldState();
+                };
+
+                console.log('Starting MediaRecorder...');
+                mediaRecorder.start(100);
+
+                const fieldDisplayName = currentField.charAt(0).toUpperCase() + currentField.slice(1);
+                showStatus(`🎤 Recording ${fieldDisplayName}... (auto-stops after silence)`, 'info');
+
+                // Start silence detection
+                checkForSilence();
+
+            } catch (error) {
+                console.error('Whisper recording failed:', error);
+                showStatus('Microphone access denied. Try clicking the field again.', 'error');
+                resetFieldState();
+            }
+        }
+
+        function checkForSilence() {
+            if (!isRecording || !analyser) return;
+
+            analyser.getByteFrequencyData(dataArray);
+
+            // Calculate average volume
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                sum += dataArray[i];
+            }
+            let average = sum / dataArray.length / 255; // Normalize to 0-1
+
+            // Debug: Log volume levels (remove in production)
+            if (Math.random() < 0.1) { // Log every ~10th check
+                console.log(`Audio level: ${average.toFixed(3)}, Threshold: ${silenceThreshold}`);
+            }
+
+            const currentTime = Date.now();
+
+            // Check if volume is above silence threshold (sound detected)
+            if (average > silenceThreshold) {
+                lastSoundTime = currentTime;
+
+                // Clear any existing silence timer
+                if (silenceTimer) {
+                    clearTimeout(silenceTimer);
+                    silenceTimer = null;
+                }
+
+                // Update visual feedback
+                updateVolumeIndicator(average);
+            } else {
+                // Check if we've been silent long enough AND recorded for minimum time
+                const silenceDuration = currentTime - lastSoundTime;
+                const recordingDuration = currentTime - recordingStartTime;
+
+                if (silenceDuration > silenceDelay && recordingDuration > minimumRecordingTime && !silenceTimer) {
+                    // We've been silent for the required duration and recorded long enough
+                    console.log(`Silence detected for ${silenceDuration}ms after ${recordingDuration}ms recording, stopping recording`);
+                    showStatus('🔄 Detected silence, processing audio...', 'info');
+                    stopCurrentRecording(false);
+                    return; // Don't continue the animation frame loop
+                } else if (silenceDuration > silenceDelay && recordingDuration <= minimumRecordingTime) {
+                    // Not recorded long enough yet, keep going
+                    console.log(`Silence detected but only ${recordingDuration}ms recorded, continuing...`);
+                }
+            }
+
+            // Continue checking
+            if (isRecording) {
+                requestAnimationFrame(checkForSilence);
+            }
+        }
+
+        function updateVolumeIndicator(volume) {
+            // Audio level feedback through status updates
+            const intensity = Math.min(volume * 5, 1);
+
+            if (intensity > 0.2) { // Only show for significant volume
+                // Update status to show we're detecting sound
+                const currentTime = Date.now();
+                const timeSinceLastSound = currentTime - lastSoundTime;
+
+                if (timeSinceLastSound < 1000) { // Within last second
+                    showStatus('🎤 Recording... (listening)', 'info');
+                }
+            }
+
+            // Show silence countdown
+            const currentTime = Date.now();
+            const silenceDuration = currentTime - lastSoundTime;
+
+            if (silenceDuration > 1000 && silenceDuration < silenceDelay) {
+                const remaining = Math.ceil((silenceDelay - silenceDuration) / 1000);
+                showStatus(`🔇 Silence detected... stopping in ${remaining}s`, 'info');
+            }
+        }
+
+        function stopCurrentRecording(switching) {
+            // Centralized stop logic (replaces removed stopRecording())
+            if (!isRecording || !mediaRecorder) return;
+            switchingFields = switching;
+
+            // Clear silence timer if any
+            if (silenceTimer) {
+                clearTimeout(silenceTimer);
+                silenceTimer = null;
+            }
+
+            try {
+                mediaRecorder.stop();
+            } catch (e) {
+                console.warn('mediaRecorder.stop() failed:', e);
+            }
+            isRecording = false;
+        }
+
+        async function processAudioChunksStream() {
+            if (audioChunks.length === 0 || lastProcessedChunk >= audioChunks.length) return;
+
+            // Create blob from new chunks only
+            const newChunks = audioChunks.slice(lastProcessedChunk);
+            if (newChunks.length === 0) return;
+
+            const audioBlob = new Blob(newChunks, { type: 'audio/webm' });
+            lastProcessedChunk = audioChunks.length;
+
+            // Show streaming status
+            const transcriptDiv = document.getElementById('transcript');
+            const currentContent = transcriptDiv.innerHTML;
+            transcriptDiv.innerHTML = currentContent + ' <span style="color: blue;">[processing...]</span>';
+
+            try {
+                const formData = new FormData();
+                formData.append('audio', audioBlob, `stream_${Date.now()}.webm`);
+
+                const response = await fetch('/transcribe', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.transcript.trim()) {
+                    // Update transcript with new content
+                    const existingText = currentContent.replace(/<[^>]*>/g, '').trim();
+                    const newText = data.transcript.trim();
+
+                    if (newText && !existingText.includes(newText)) {
+                        transcriptDiv.innerHTML = existingText + ' ' + newText;
+
+                        // Update form fields with new data
+                        if (data.form_data) {
+                            updateFormFields(data.form_data);
+                        }
+
+                        // Show real-time status
+                        showStatus('🔄 Real-time processing...', 'info');
+                    } else {
+                        // Remove the processing indicator
+                        transcriptDiv.innerHTML = currentContent;
+                    }
+                } else {
+                    // Remove the processing indicator
+                    transcriptDiv.innerHTML = currentContent;
+                }
+
+            } catch (error) {
+                console.error('Streaming transcription failed:', error);
+                // Remove the processing indicator
+                transcriptDiv.innerHTML = currentContent;
+            }
+        }
+
+        async function sendAudioToWhisper(audioBlob) {
+            showStatus('🔄 Final transcription with Whisper...', 'info');
+
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'recording.webm');
+
+            try {
+                const response = await fetch('/transcribe', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                console.log('Whisper response:', data);
+
+                if (data.success) {
+                    // Update with final, complete transcript
+                    document.getElementById('transcript').innerHTML =
+                        `<strong>Final:</strong> ${data.transcript}`;
+
+                    updateFormFields(data.form_data || {});
+
+                    if (data.message) {
+                        showStatus(`✅ ${data.message} (${data.method})`, 'success');
+                    }
+
+                    // Check for missing fields and automatically prompt
+                    const missingFields = checkMissingFields();
+                    if (missingFields.length > 0) {
+                        setTimeout(() => {
+                            promptForMissingFields(missingFields);
+                        }, 2000); // Wait 2 seconds before prompting
+                    } else {
+                        showStatus('🎉 Form completed! All fields filled.', 'success');
+                        document.getElementById('formData').style.display = 'block';
+                        document.getElementById('jsonData').textContent = JSON.stringify(getCurrentFormData(), null, 2);
+                    }
+
+                } else {
+                    const errorMsg = data.error || 'Transcription failed';
+                    document.getElementById('transcript').innerHTML =
+                        `<span style="color: red;">Error: ${errorMsg}</span>`;
+                    showStatus(`❌ ${errorMsg}`, 'error');
+                }
+
+            } catch (error) {
+                console.error('Transcription request failed:', error);
+                showStatus('❌ Network error during transcription', 'error');
+            }
+        }
+
+        async function sendAudioToWhisperForField(audioBlob) {
+            // Snapshot field to avoid race if user clicks elsewhere while request in-flight
+            const targetField = currentField;
+            if (!targetField) {
+                console.warn('No currentField at send time, aborting');
+                return;
+            }
+            const fieldDisplayName = targetField.charAt(0).toUpperCase() + targetField.slice(1);
+            console.log(`Processing field: ${targetField}, blob size: ${audioBlob.size}`);
+            showStatus(`🔄 Processing ${fieldDisplayName} with Whisper...`, 'info');
+
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'recording.webm');
+
+            try {
+                const response = await fetch('/transcribe_simple', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                console.log('Response status:', response.status);
+                console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
+                const result = await response.json();
+                console.log('Full response from server:', result);
+
+                if (response.ok && result.success) {
+                    // Check multiple possible field names
+                    const transcript = result.transcript || result.text || result.result;
+                    console.log('Extracted transcript:', transcript);
+
+                    if (transcript && transcript.trim()) {
+                        const fieldElement = document.getElementById(targetField);
+                        console.log('Field element found:', fieldElement);
+                        console.log('Target field ID (snapshot):', targetField, 'Live currentField:', currentField);
+                        if (fieldElement) {
+                            console.log(`Filling field ${targetField} with: "${transcript.trim()}"`);
+                            fieldElement.value = transcript.trim();
+                            fieldElement.classList.add('filled');
+
+                            // Trigger input event to ensure any listeners are notified
+                            fieldElement.dispatchEvent(new Event('input', { bubbles: true }));
+
+                            showStatus(`✅ ${fieldDisplayName} filled successfully!`, 'success');
+                        } else {
+                            console.error(`Field element not found: ${currentField}`);
+                            showStatus(`❌ Field ${fieldDisplayName} not found!`, 'error');
+                        }
+                    } else {
+                        console.warn('No transcript found in result:', result);
+                        showStatus(`❌ No speech detected for ${fieldDisplayName}. Try again.`, 'warning');
+                    }
+                } else {
+                    console.error('Server error response:', result);
+                    const errorMsg = result.error || 'Server error';
+                    showStatus(`❌ ${errorMsg}`, 'error');
+                    throw new Error(errorMsg);
+                }
+            } catch (error) {
+                console.error('Transcription error:', error);
+                showStatus(`❌ Failed to process ${fieldDisplayName}. Please try again.`, 'error');
+            } finally {
+                resetFieldState();
+            }
+        }
+
+        function resetFieldState() {
+            isRecording = false;
+
+            // Remove recording style from all fields and reset placeholders
+            document.querySelectorAll('.form-field input').forEach(field => {
+                field.classList.remove('recording');
+                if (field.placeholder === 'Recording... speak now!') {
+                    field.placeholder = `Click here and speak your ${field.name}`;
+                }
+            });
+
+            // Clear timers
+            if (silenceTimer) {
+                clearTimeout(silenceTimer);
+                silenceTimer = null;
+            }
+
+            // Cleanup audio resources
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            if (audioContext && audioContext.state !== 'closed') {
+                audioContext.close();
+                audioContext = null;
+            }
+
+            currentField = null;
+        }
+
+        function processTranscript(transcript) {
+            showStatus('Processing speech...', 'info');
+            console.log('Processing transcript:', transcript);
+            console.log('Sending to endpoint: /process');
+
+            fetch('/process', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ text: transcript })
+            })
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.error) {
+                        showStatus('Error: ' + data.error, 'error');
+                    } else {
+                        updateFormFields(data.form_data);
+
+                        if (data.is_complete) {
+                            showStatus('Form completed successfully!', 'success');
+                            document.getElementById('formData').style.display = 'block';
+                            document.getElementById('jsonData').textContent = JSON.stringify(data.form_data, null, 2);
+                            stopRecording();
+                        } else {
+                            showStatus(data.message || 'Information processed', 'info');
+                        }
+                    }
+                })
+                .catch(error => {
+                    showStatus('Network error: ' + error, 'error');
+                });
+        }
+
+        function checkMissingFields() {
+            const fields = ['name', 'email', 'phone', 'address'];
+            const missing = [];
+
+            fields.forEach(field => {
+                const input = document.getElementById(field);
+                if (!input.value.trim()) {
+                    missing.push(field);
+                }
+            });
+
+            return missing;
+        }
+
+        function getCurrentFormData() {
+            const fields = ['name', 'email', 'phone', 'address'];
+            const data = {};
+
+            fields.forEach(field => {
+                const input = document.getElementById(field);
+                if (input.value.trim()) {
+                    data[field] = input.value.trim();
+                }
+            });
+
+            return data;
+        }
+
+        function promptForMissingFields(missingFields) {
+            const fieldNames = {
+                'name': 'full name',
+                'email': 'email address',
+                'phone': 'phone number',
+                'address': 'address'
+            };
+
+            if (missingFields.length === 1) {
+                const field = missingFields[0];
+                showStatus(`🎤 Please provide your ${fieldNames[field]}. Recording will start automatically in 3 seconds...`, 'info');
+
+                // Highlight the missing field
+                highlightField(field);
+
+                // Auto-restart recording after 3 seconds
+                setTimeout(() => {
+                    if (!isRecording) {
+                        startRecording();
+                    }
+                }, 3000);
+
+            } else {
+                const missingList = missingFields.map(f => fieldNames[f]).join(', ');
+                showStatus(`🎤 Missing: ${missingList}. Please provide any remaining information. Recording will start automatically in 3 seconds...`, 'info');
+
+                // Highlight first missing field
+                highlightField(missingFields[0]);
+
+                // Auto-restart recording after 3 seconds
+                setTimeout(() => {
+                    if (!isRecording) {
+                        startRecording();
+                    }
+                }, 3000);
+            }
+        }
+
+        function highlightField(fieldName) {
+            // Remove all highlights first
+            const fields = ['name', 'email', 'phone', 'address'];
+            fields.forEach(field => {
+                document.getElementById(field).classList.remove('field-highlight');
+            });
+
+            // Highlight the specific field
+            const input = document.getElementById(fieldName);
+            input.classList.add('field-highlight');
+            input.focus();
+            input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function updateFormFields(formData) {
+            const fields = ['name', 'email', 'phone', 'address'];
+            let hasNewData = false;
+
+            fields.forEach(field => {
+                const input = document.getElementById(field);
+                const currentValue = input.value.trim();
+                const newValue = formData[field] ? formData[field].trim() : '';
+
+                // Only update if we have new data and the field is empty or the new value is more complete
+                if (newValue && (!currentValue || newValue.length > currentValue.length)) {
+                    input.value = newValue;
+                    hasNewData = true;
+
+                    // Brief highlight animation for newly filled/updated fields
+                    input.style.transition = 'all 0.3s ease';
+                    input.style.backgroundColor = '#28a745';
+                    input.style.color = 'white';
+                    input.style.transform = 'scale(1.02)';
+
+                    setTimeout(() => {
+                        input.style.backgroundColor = '';
+                        input.style.color = '';
+                        input.style.transform = '';
+                    }, 800);
+
+                    // Show field-specific feedback
+                    const fieldName = field.charAt(0).toUpperCase() + field.slice(1);
+                    console.log(`✅ ${fieldName} updated: ${newValue}`);
+                }
+            });
+
+            return hasNewData;
+        }
+
+        // Highlight the next empty field (initial or on reset)
+        function highlightNextField() {
+            const fields = ['name', 'email', 'phone', 'address'];
+            let nextEmpty = null;
+            fields.forEach(field => {
+                const input = document.getElementById(field);
+                input.classList.remove('field-highlight');
+                if (!input.value && !nextEmpty) {
+                    nextEmpty = input;
+                }
+            });
+            if (nextEmpty) {
+                nextEmpty.classList.add('field-highlight');
+                nextEmpty.focus();
+                nextEmpty.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = 'status ' + type;
+            statusDiv.style.display = 'block';
+
+            // Auto-hide success and info messages after 3 seconds
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => {
+                    statusDiv.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function () {
+            if (!recognition) {
+                showStatus('Speech recognition not supported in this browser. Please use Chrome, Edge, or Safari.', 'error');
+            }
+            // Highlight first field on load
+            highlightNextField();
+        });
+    </script>
+</body>
+
+</html>
