@@ -1,23 +1,30 @@
 # Voice-Enabled Form Demo Application
 
-This is a Flask web application that demonstrates intelligent voice-enabled form filling using speech recognition and AI-powered text processing with real-time field highlighting and step-by-step guidance.
+This is a Flask web application that demonstrates voice-enabled form filling using browser audio recording plus AI-powered extraction, with real-time field highlighting and step-by-step guidance.
 
 ## Architecture Overview
 
-The application uses a two-stage pipeline to convert speech into structured form data:
+The application supports two processing paths:
+
+### Two-Stage (default)
 
 ```
-Audio Input --> [Speech-to-Text] --> Text --> [Text Extraction] --> Form Fields
-                   (Whisper)                   (Regex/LLM)
+Audio Input (browser) --> /transcribe --> [Local Whisper] --> Text --> [ProviderChain extractors] --> Form Fields
+```
+
+### Single-Stage (multimodal)
+
+```
+Audio Input (browser) --> /transcribe_multimodal --> [Backend: OpenAI | Ollama | vLLM] --> Form Fields
 ```
 
 ### Stage 1: Speech-to-Text (Whisper)
 
-Local Whisper model transcribes audio to text. This runs entirely on your machine.
+In two-stage mode, a local Whisper model transcribes audio to text (runs on your machine).
 
 ### Stage 2: Text Extraction
 
-Configurable extractors parse the transcribed text into structured form fields. The system tries extractors in priority order until one succeeds.
+In two-stage mode, a provider chain parses the transcript into structured form fields. Providers are tried in priority order until one succeeds.
 
 ## Extraction Approaches
 
@@ -31,9 +38,9 @@ AI_PROVIDER_PRIORITY=demo,ollama,openai
 
 | Aspect | Details |
 |--------|---------|
-| Speed | Instant (less than 1ms) |
+| Speed | Regex extraction is instant; total time also depends on transcription |
 | Accuracy | Good for predictable patterns |
-| Offline | Yes |
+| Offline | Yes (for extraction; transcription is local in two-stage mode) |
 | Cost | Free |
 
 **How it works**: Uses regular expressions to match patterns like "my name is [NAME]" or "[EMAIL] at [DOMAIN] dot com".
@@ -291,8 +298,8 @@ AI_PROVIDER_PRIORITY=openai,demo
 
 ### Core Functionality
 - **Smart Web Form**: Interactive form with fields for name, email, phone, and address
-- **Speech Recognition**: Uses browser's Web Speech API for real-time voice input
-- **AI-Powered Processing**: OpenAI GPT-4o-mini integration with intelligent regex fallback
+- **Audio Recording**: Uses the browser microphone (MediaRecorder) and uploads audio to the Flask backend
+- **AI-Powered Processing**: Provider chain supports regex, Ollama, and OpenAI for text extraction; optional single-stage multimodal backends
 - **Step-by-Step Guidance**: Highlights current field and guides users through form completion
 - **Real-time Field Highlighting**: Visual feedback showing which field to fill next
 
@@ -302,7 +309,7 @@ AI_PROVIDER_PRIORITY=openai,demo
 - **Missing Information Detection**: Automatically identifies and requests incomplete fields
 - **Comprehensive Logging**: Debug-level logging for development and troubleshooting
 - **Health Check Endpoint**: Monitor application and OpenAI API connectivity status
-- **Graceful Fallback**: Seamless switch to regex extraction when OpenAI is unavailable
+- **Graceful Fallback**: Provider chain falls back between providers based on `AI_PROVIDER_PRIORITY`
 
 ## Quick Start
 
@@ -371,16 +378,15 @@ The application intelligently handles various speech patterns:
 
 ## Technical Details
 
-### Speech Recognition
-- **Web Speech API**: Real-time continuous speech recognition
-- **Browser Support**: Chrome, Edge, Safari (best), Firefox (limited)
-- **Language**: English (US) with interim results
-- **Error Handling**: Automatic recovery and restart on connection issues
+### Audio Capture
+- **MediaRecorder API**: Records audio in the browser and uploads it to the backend
+- **Browser Support**: Modern Chrome/Edge work best; Firefox support varies by platform and codec
+- **Permissions**: Requires microphone permission; HTTPS is required in many production setups
 
 ### AI Processing Architecture
-- **Primary**: OpenAI GPT-4o-mini with structured JSON output
-- **Fallback**: Intelligent regex patterns for offline operation
-- **Dual Model Support**: Falls back from GPT-4o-mini to GPT-3.5-turbo if needed
+- **Two-stage**: Local Whisper transcription + provider chain extraction (regex/Ollama/OpenAI)
+- **Single-stage**: Multimodal backend that produces transcript + extracted fields in one call
+- **OpenAI text extraction**: Falls back from `gpt-4o-mini` to `gpt-3.5-turbo` if needed
 - **Smart Extraction**: Handles speech-to-text variations (e.g., "at" → "@", "dot" → ".")
 
 ### Form Management
@@ -400,20 +406,24 @@ The application intelligently handles various speech patterns:
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/` | GET | Main application interface |
-| `/process_speech` | POST | Process voice input and extract form data |
-| `/reset_form` | POST | Reset form to initial state |
-| `/health` | GET | System health check and OpenAI connectivity status |
+| `/process` | POST | Process raw text (`{"text": "..."}`) and update form fields |
+| `/transcribe` | POST | Upload audio; returns transcript + extracted fields (two-stage) |
+| `/transcribe_simple` | POST | Upload audio; returns transcript only |
+| `/transcribe_multimodal` | POST | Upload audio; single-stage processing with `backend` (`openai`, `ollama`, `vllm`) |
+| `/status` | GET | Current form data, missing fields, and provider info |
+| `/reset` | POST | Reset server-side form state |
+| `/health` | GET | Health status and provider availability |
 
 ## Customization
 
 ### Adding New Form Fields
-1. Update `REQUIRED_FIELDS` dictionary in `app.py`
+1. Update `REQUIRED_FIELDS` in `config/settings.py`
 2. Add corresponding HTML input fields in `templates/index.html`
 3. Update the field highlighting logic in JavaScript
 4. Modify extraction patterns (regex or OpenAI prompt)
 
 ### Switching AI Providers
-Replace the `extract_information` method in the `FormProcessor` class with your preferred AI service integration.
+Adjust provider priority via `AI_PROVIDER_PRIORITY` in `.env` (provider chain order), or implement a new provider under `providers/`.
 
 ### Customizing Speech Patterns
 Modify the regex patterns in the `_demo_extraction` method to handle your specific speech variations or language requirements.
@@ -461,11 +471,7 @@ For production deployment, implement:
 
 ## Dependencies
 
-```txt
-Flask==2.3.3
-openai==1.3.0
-python-dotenv==1.0.0
-```
+All dependencies are pinned in `requirements.txt`.
 
 ## Browser Compatibility
 
