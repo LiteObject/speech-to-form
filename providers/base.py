@@ -6,7 +6,7 @@ ensuring consistent behavior across different AI services.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 import logging
 
 logger = logging.getLogger(__name__)
@@ -52,6 +52,29 @@ class AIProvider(ABC):
             "Subclasses must implement extract_information method"
         )
 
+    def extract_with_context(
+        self,
+        user_input: str,
+        filled_fields: Optional[Dict[str, str]] = None,
+        target_fields: Optional[List[str]] = None,
+    ) -> Optional[Dict]:
+        """
+        Extract information with context from already-filled fields.
+
+        This method enables context-aware extraction where the model can use
+        already-filled field values to improve extraction accuracy.
+
+        Args:
+            user_input (str): Raw text input from the user
+            filled_fields (Dict): Already-filled form fields for context
+            target_fields (List[str]): Specific fields to extract (None = all)
+
+        Returns:
+            Optional[Dict]: Extracted information as a dictionary
+        """
+        prompt = self.get_context_aware_prompt(user_input, filled_fields, target_fields)
+        return self.extract_information(user_input, prompt)
+
     @abstractmethod
     def is_available(self) -> bool:
         """
@@ -95,3 +118,55 @@ class AIProvider(ABC):
 
         Example response format: {{"name": "John Doe", "email": "john@example.com"}}
         """
+
+    def get_context_aware_prompt(
+        self,
+        user_input: str,
+        filled_fields: Optional[Dict[str, str]] = None,
+        target_fields: Optional[List[str]] = None,
+    ) -> str:
+        """
+        Generate a context-aware prompt that includes already-filled fields.
+
+        Args:
+            user_input (str): Raw text input from the user
+            filled_fields (Dict): Already-filled form fields
+            target_fields (List[str]): Specific fields to extract
+
+        Returns:
+            str: Formatted prompt with context
+        """
+        context_section = ""
+        if filled_fields:
+            context_lines = []
+            for field, value in filled_fields.items():
+                if value:
+                    context_lines.append(f"  - {field}: {value}")
+            if context_lines:
+                context_section = f"""
+The form already has these values:
+{chr(10).join(context_lines)}
+
+Use this context to avoid re-extracting these fields and to disambiguate when needed.
+For example, if the name is already known, focus on extracting other information.
+"""
+
+        target_section = ""
+        if target_fields:
+            target_section = f"""
+Focus on extracting these specific fields: {', '.join(target_fields)}
+"""
+
+        return f"""
+Extract the following information from the user's input and return as a JSON object:
+- name: full name (string)
+- email: email address (string)
+- phone: phone number (string)
+- address: full address (string)
+{context_section}{target_section}
+User input: "{user_input}"
+
+Return a JSON object with only the NEW fields that are mentioned. If a field is not mentioned or already filled, do not include it.
+
+Example response format: {{"email": "john@example.com", "phone": "555-123-4567"}}
+"""

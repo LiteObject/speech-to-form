@@ -311,18 +311,60 @@ AI_PROVIDER_PRIORITY=openai,demo
 - **Health Check Endpoint**: Monitor application and OpenAI API connectivity status
 - **Graceful Fallback**: Provider chain falls back between providers based on `AI_PROVIDER_PRIORITY`
 
+### Smart Extraction Enhancements
+
+The application includes intelligent features to improve extraction accuracy over time:
+
+#### Pattern Cache
+- **Learning from Success**: Caches successful extraction patterns for faster future processing
+- **Pattern Matching**: Finds similar speech patterns to apply proven extraction strategies
+- **Persistent Storage**: Saves patterns to `pattern_cache.json` for cross-session learning
+
+#### Field-Level Confidence Scoring
+Each extracted field receives a confidence score (0.0 - 1.0) based on:
+- **Provider Quality**: OpenAI (0.85 base), Ollama (0.75), Demo/regex (0.70)
+- **Format Validation**: Email, phone, and name format verification
+- **Length Appropriateness**: Penalizes unusually short or long values
+- **Context Matching**: Verifies extracted value appears in original transcript
+
+#### Context-Aware Extraction
+When the form already has data, the system:
+- Focuses extraction prompts on missing fields only
+- Includes filled fields as context to avoid re-extraction
+- Reduces ambiguity in partial form updates
+
+#### Field-Level Retry UI
+The frontend displays:
+- **Confidence Indicators**: Visual bar (green/yellow/red) per field
+- **Re-record Buttons**: Per-field "🎤 Re-record" for low-confidence values
+- **Low-Confidence Styling**: Yellow highlighting prompts user verification
+
 ## Quick Start
 
 ### 1. Project Structure
 ```
 speech-to-form/
-├── app.py                 # Main Flask application with OpenAI integration
+├── app.py                 # Main Flask application
 ├── requirements.txt       # Python dependencies
-├── .env                  # Environment variables (create from .env.example)
-├── .env.example          # Example environment configuration
-├── speech_to_form.log    # Application logs (auto-generated)
+├── .env                   # Environment variables (create from .env.example)
+├── pattern_cache.json     # Learned extraction patterns (auto-generated)
+├── config/
+│   └── settings.py        # Configuration and form schema
+├── providers/
+│   ├── base.py            # Abstract provider interface
+│   ├── factory.py         # Provider chain factory
+│   ├── demo_provider.py   # Regex-based extraction
+│   ├── ollama_provider.py # Local LLM extraction
+│   ├── openai_provider.py # OpenAI API extraction
+│   └── multimodal_provider.py  # Single-stage audio processing
+├── services/
+│   ├── form_processor.py  # Form state management
+│   ├── pattern_cache.py   # Extraction pattern learning
+│   └── confidence_scorer.py # Field confidence scoring
+├── schemas/
+│   └── validation.py      # Data validation utilities
 └── templates/
-    └── index.html        # Frontend with step-by-step field highlighting
+    └── index.html         # Frontend with confidence indicators
 ```
 
 ### 2. Installation
@@ -485,9 +527,13 @@ All dependencies are pinned in `requirements.txt`.
 
 ## Recent Updates
 
+- **Pattern Cache**: Learns from successful extractions for faster future processing
+- **Confidence Scoring**: Field-level confidence scores (0.0-1.0) based on provider, format, and context
+- **Context-Aware Extraction**: Focuses on missing fields when form has existing data
+- **Field-Level Retry**: Per-field re-record buttons with visual confidence indicators
+- **Multimodal Backends**: Support for OpenAI GPT-4o, Ollama, and vLLM single-stage processing
 - **Field Highlighting**: Added step-by-step visual guidance
 - **Email Intelligence**: Improved speech-to-email conversion patterns
 - **Enhanced Logging**: Comprehensive debug logging throughout application
-- **Age Field Removal**: Simplified form to essential fields only
 - **Error Recovery**: Better handling of API failures and network issues
 - **Health Monitoring**: Added system health check endpoint

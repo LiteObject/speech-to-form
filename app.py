@@ -15,10 +15,12 @@ import tempfile
 import os
 
 from flask import Flask, jsonify, render_template, request
+from flask_socketio import SocketIO, emit
 from werkzeug.utils import secure_filename
 
 from config import settings
 from services import FormProcessor
+from services.stream_processor import StreamProcessor
 from providers.local_whisper_provider import LocalWhisperProvider
 
 # Configure logging
@@ -30,9 +32,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Global form processor instance
 form_processor = FormProcessor()
+# Global stream processor instance
+stream_processor = StreamProcessor()
 
 # Whisper provider storage (using dict to avoid global statement)
 _whisper_state: dict = {"provider": None}
@@ -200,6 +205,10 @@ def transcribe_audio():
                         "message": result.get("message", "Transcription completed"),
                         "method": "local_whisper",
                         "model": whisper_instance.model_size,
+                        "field_confidence": result.get("field_confidence", {}),
+                        "low_confidence_fields": result.get(
+                            "low_confidence_fields", []
+                        ),
                     }
                 )
             else:
@@ -449,16 +458,33 @@ def transcribe_audio_multimodal():
             if result:
                 logger.info("Multimodal processing successful (backend: %s)", backend)
 
+                # Process through form processor to get confidence scores
+                transcript = result.get("transcript", "")
+                if transcript:
+                    proc_result = form_processor.process_input(transcript)
+                else:
+                    proc_result = {
+                        "field_confidence": {},
+                        "low_confidence_fields": [],
+                        "missing_fields": result.get("missing_fields", []),
+                    }
+
                 return jsonify(
                     {
                         "success": True,
-                        "transcript": result.get("transcript", ""),
+                        "transcript": transcript,
                         "form_data": result.get("form_data", {}),
-                        "missing_fields": result.get("missing_fields", []),
+                        "missing_fields": proc_result.get(
+                            "missing_fields", result.get("missing_fields", [])
+                        ),
                         "message": f"Single-stage processing completed ({backend})",
                         "method": "multimodal",
                         "backend": backend,
                         "model": multimodal.model_name,
+                        "field_confidence": proc_result.get("field_confidence", {}),
+                        "low_confidence_fields": proc_result.get(
+                            "low_confidence_fields", []
+                        ),
                     }
                 )
             else:
@@ -650,6 +676,37 @@ def internal_error(error):
     return jsonify({"error": "Internal server error"}), 500
 
 
+# Socket.IO Event Handlers
+@socketio.on("connect")
+def handle_connect():
+    """Handle client connection."""
+    logger.info("Client connected to WebSocket")
+    emit("connection_response", {"status": "connected"})
+
+
+@socketio.on("disconnect")
+def handle_disconnect():
+    """Handle client disconnection."""
+    logger.info("Client disconnected from WebSocket")
+
+
+@socketio.on("audio_chunk")
+def handle_audio_chunk(data):
+    """
+    Handle incoming audio chunks for real-time processing.
+
+    Note: Real-time chunk processing is currently disabled because browser
+    sends encoded webm/opus data, not raw PCM audio. The full recording
+    is still processed via the /transcribe endpoint after recording stops.
+
+    This handler is kept for future implementation with proper audio decoding.
+    """
+    # Real-time processing disabled - browser sends encoded audio chunks
+    # that require decoding before Whisper can process them.
+    # The final recording is processed via /transcribe endpoint instead.
+    pass
+
+
 if __name__ == "__main__":
     logger.info("Starting Speech-to-Form application")
     logger.info("Configuration loaded from: %s", "environment variables")
@@ -672,6 +729,10 @@ if __name__ == "__main__":
     except (ValueError, RuntimeError, OSError) as e:
         logger.warning("Whisper preload error: %s - first call will be slower", str(e))
 
-    app.run(
-        host=settings.FLASK_HOST, port=settings.FLASK_PORT, debug=settings.FLASK_DEBUG
+    socketio.run(
+        app,
+        host=settings.FLASK_HOST,
+        port=settings.FLASK_PORT,
+        debug=settings.FLASK_DEBUG,
+        allow_unsafe_werkzeug=True,
     )

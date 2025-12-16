@@ -8,6 +8,7 @@ based on configuration, enabling easy swapping between different AI services.
 import os
 from typing import Dict, List, Optional, Type
 import logging
+from functools import lru_cache
 
 from .base import AIProvider
 from .openai_provider import OpenAIProvider
@@ -257,6 +258,7 @@ class ProviderChain:
         self.providers = providers
         logger.info("Created provider chain with %d providers", len(providers))
 
+    @lru_cache(maxsize=100)
     def extract_information(
         self, user_input: str, prompt: Optional[str] = None
     ) -> Optional[Dict]:
@@ -264,6 +266,7 @@ class ProviderChain:
         Extract information using the provider chain.
 
         Tries each provider in sequence until one succeeds or all fail.
+        Results are cached to improve performance for repeated queries.
 
         Args:
             user_input (str): Raw text input from the user
@@ -313,3 +316,63 @@ class ProviderChain:
             List[Dict]: Status information for each provider
         """
         return [provider.get_provider_info() for provider in self.providers]
+
+    def extract_with_context(
+        self,
+        user_input: str,
+        filled_fields: Optional[Dict[str, str]] = None,
+        target_fields: Optional[List[str]] = None,
+    ) -> Optional[Dict]:
+        """
+        Extract information using context-aware prompts.
+
+        Tries each provider in sequence, using filled fields to help focus
+        extraction on missing information.
+
+        Args:
+            user_input (str): Raw text input from the user
+            filled_fields (Dict[str, str], optional): Already filled form fields
+            target_fields (List[str], optional): Fields to focus extraction on
+
+        Returns:
+            Optional[Dict]: Extracted information or None if all providers fail
+        """
+        for i, provider in enumerate(self.providers):
+            try:
+                logger.info(
+                    "Trying provider %d (context-aware): %s",
+                    i + 1,
+                    provider.__class__.__name__,
+                )
+
+                if not provider.is_available():
+                    logger.warning(
+                        "Provider %s not available, skipping",
+                        provider.__class__.__name__,
+                    )
+                    continue
+
+                result = provider.extract_with_context(
+                    user_input=user_input,
+                    filled_fields=filled_fields,
+                    target_fields=target_fields,
+                )
+                if result:
+                    logger.info(
+                        "Successfully extracted with %s (context-aware)",
+                        provider.__class__.__name__,
+                    )
+                    return result
+                else:
+                    logger.warning(
+                        "Provider %s returned no results", provider.__class__.__name__
+                    )
+
+            except (AttributeError, ValueError, RuntimeError, TypeError) as e:
+                logger.error(
+                    "Provider %s failed with error: %s", provider.__class__.__name__, e
+                )
+                continue
+
+        logger.error("All providers in chain failed (context-aware)")
+        return None

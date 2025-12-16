@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Voice-Enabled Form</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -256,6 +257,11 @@
             animation: highlight-pulse 2s infinite;
         }
 
+        .form-field.low-confidence input {
+            border-color: #ffc107;
+            background: #fffde7;
+        }
+
         .form-field.prompting input {
             border-color: #667eea;
             background: #f3e5f5;
@@ -272,6 +278,66 @@
             50% {
                 box-shadow: 0 0 0 8px rgba(103, 126, 234, 0);
             }
+        }
+
+        /* Confidence Indicator */
+        .confidence-indicator {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            margin-top: 6px;
+            font-size: 12px;
+        }
+
+        .confidence-indicator.show {
+            display: flex;
+        }
+
+        .confidence-bar {
+            flex: 1;
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            overflow: hidden;
+            max-width: 100px;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        .confidence-fill.high {
+            background: #28a745;
+        }
+
+        .confidence-fill.medium {
+            background: #ffc107;
+        }
+
+        .confidence-fill.low {
+            background: #dc3545;
+        }
+
+        .confidence-text {
+            color: #666;
+        }
+
+        .rerecord-btn {
+            padding: 4px 10px;
+            border: none;
+            background: #ffc107;
+            color: #333;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .rerecord-btn:hover {
+            background: #e0a800;
+            transform: scale(1.05);
         }
 
         /* Missing Field Prompt */
@@ -623,12 +689,12 @@
                 <div class="field-wrapper">
                     <input type="text" id="name" name="name" placeholder="Your full name">
                 </div>
-                <div class="field-prompt" id="prompt-name">
-                    <p>🎤 Please say your <strong>name</strong></p>
-                    <div class="prompt-actions">
-                        <button class="prompt-btn voice" onclick="recordForField('name')">🎤 Speak</button>
-                        <button class="prompt-btn skip" onclick="skipField('name')">Skip</button>
+                <div class="confidence-indicator" id="confidence-name">
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" id="confidence-fill-name"></div>
                     </div>
+                    <span class="confidence-text" id="confidence-text-name"></span>
+                    <button class="rerecord-btn" onclick="recordForField('name')">🎤 Re-record</button>
                 </div>
             </div>
 
@@ -637,12 +703,12 @@
                 <div class="field-wrapper">
                     <input type="email" id="email" name="email" placeholder="your.email@example.com">
                 </div>
-                <div class="field-prompt" id="prompt-email">
-                    <p>🎤 Please say your <strong>email address</strong></p>
-                    <div class="prompt-actions">
-                        <button class="prompt-btn voice" onclick="recordForField('email')">🎤 Speak</button>
-                        <button class="prompt-btn skip" onclick="skipField('email')">Skip</button>
+                <div class="confidence-indicator" id="confidence-email">
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" id="confidence-fill-email"></div>
                     </div>
+                    <span class="confidence-text" id="confidence-text-email"></span>
+                    <button class="rerecord-btn" onclick="recordForField('email')">🎤 Re-record</button>
                 </div>
             </div>
 
@@ -651,12 +717,12 @@
                 <div class="field-wrapper">
                     <input type="tel" id="phone" name="phone" placeholder="555-123-4567">
                 </div>
-                <div class="field-prompt" id="prompt-phone">
-                    <p>🎤 Please say your <strong>phone number</strong></p>
-                    <div class="prompt-actions">
-                        <button class="prompt-btn voice" onclick="recordForField('phone')">🎤 Speak</button>
-                        <button class="prompt-btn skip" onclick="skipField('phone')">Skip</button>
+                <div class="confidence-indicator" id="confidence-phone">
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" id="confidence-fill-phone"></div>
                     </div>
+                    <span class="confidence-text" id="confidence-text-phone"></span>
+                    <button class="rerecord-btn" onclick="recordForField('phone')">🎤 Re-record</button>
                 </div>
             </div>
 
@@ -665,12 +731,12 @@
                 <div class="field-wrapper">
                     <input type="text" id="address" name="address" placeholder="Your street address">
                 </div>
-                <div class="field-prompt" id="prompt-address">
-                    <p>🎤 Please say your <strong>address</strong></p>
-                    <div class="prompt-actions">
-                        <button class="prompt-btn voice" onclick="recordForField('address')">🎤 Speak</button>
-                        <button class="prompt-btn skip" onclick="skipField('address')">Skip</button>
+                <div class="confidence-indicator" id="confidence-address">
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" id="confidence-fill-address"></div>
                     </div>
+                    <span class="confidence-text" id="confidence-text-address"></span>
+                    <button class="rerecord-btn" onclick="recordForField('address')">🎤 Re-record</button>
                 </div>
             </div>
         </div>
@@ -702,6 +768,27 @@
         let missingFieldsQueue = [];
         let processingMode = 'two-stage'; // 'two-stage' or 'single-stage'
         let selectedBackend = 'openai'; // 'openai', 'ollama', or 'vllm'
+
+        // Socket.IO Initialization
+        const socket = io();
+
+        socket.on('connect', () => {
+            console.log('Connected to WebSocket');
+        });
+
+        socket.on('transcription_update', (data) => {
+            console.log('Real-time update:', data);
+
+            // Update transcript preview
+            const preview = document.getElementById('transcriptPreview');
+            preview.textContent = `"${data.transcript}"`;
+            preview.classList.add('show');
+
+            // Update fields
+            if (data.form_data) {
+                fillFieldsFromResult(data.form_data, {});
+            }
+        });
 
         // Silence detection settings
         const SILENCE_THRESHOLD = 0.08;
@@ -875,7 +962,7 @@
 
         function setFieldState(fieldId, state) {
             const field = document.getElementById(`field-${fieldId}`);
-            field.classList.remove('filled', 'missing', 'prompting');
+            field.classList.remove('filled', 'missing', 'prompting', 'low-confidence');
             if (state) {
                 field.classList.add(state);
             }
@@ -946,7 +1033,11 @@
                 recordingStartTime = Date.now();
 
                 mediaRecorder.ondataavailable = (e) => {
-                    if (e.data.size > 0) audioChunks.push(e.data);
+                    if (e.data.size > 0) {
+                        audioChunks.push(e.data);
+                        // Send chunk to server for real-time processing
+                        socket.emit('audio_chunk', e.data);
+                    }
                 };
 
                 mediaRecorder.onstop = async () => {
@@ -1107,7 +1198,7 @@
 
                     // Fill fields
                     setStep('step-fill');
-                    fillFieldsFromResult(result.form_data || {});
+                    fillFieldsFromResult(result.form_data || {}, result.field_confidence || {});
 
                     // Check for missing fields
                     const missing = result.missing_fields || findMissingFields();
@@ -1129,15 +1220,63 @@
             }
         }
 
-        function fillFieldsFromResult(formData) {
+        function fillFieldsFromResult(formData, confidenceData = {}) {
+            console.log('fillFieldsFromResult called with:', formData, confidenceData);
             FIELDS.forEach(field => {
                 const value = formData[field];
                 if (value && value.trim()) {
                     const normalized = normalizeFieldValue(field, value);
                     document.getElementById(field).value = normalized;
-                    setFieldState(field, 'filled');
+
+                    // Get confidence for this field (default to 0.7 instead of 1.0 to show indicator)
+                    const confidence = confidenceData[field] !== undefined ? confidenceData[field] : 0.7;
+                    console.log(`Field ${field}: value="${normalized}", confidence=${confidence}`);
+                    updateFieldConfidence(field, confidence);
+
+                    // Set appropriate state based on confidence
+                    if (confidence < 0.5) {
+                        setFieldState(field, 'low-confidence');
+                    } else {
+                        setFieldState(field, 'filled');
+                    }
                 }
             });
+        }
+
+        function updateFieldConfidence(fieldId, confidence) {
+            console.log(`updateFieldConfidence: ${fieldId} = ${confidence}`);
+            const indicator = document.getElementById(`confidence-${fieldId}`);
+            const fill = document.getElementById(`confidence-fill-${fieldId}`);
+            const text = document.getElementById(`confidence-text-${fieldId}`);
+
+            console.log(`Elements found: indicator=${!!indicator}, fill=${!!fill}, text=${!!text}`);
+            if (!indicator || !fill || !text) return;
+
+            // Show confidence indicator
+            indicator.classList.add('show');
+
+            // Update bar width
+            fill.style.width = `${confidence * 100}%`;
+
+            // Update bar color based on confidence
+            fill.classList.remove('high', 'medium', 'low');
+            if (confidence >= 0.75) {
+                fill.classList.add('high');
+                text.textContent = 'High confidence';
+            } else if (confidence >= 0.5) {
+                fill.classList.add('medium');
+                text.textContent = 'Medium confidence';
+            } else {
+                fill.classList.add('low');
+                text.textContent = 'Low confidence - please verify';
+            }
+        }
+
+        function hideFieldConfidence(fieldId) {
+            const indicator = document.getElementById(`confidence-${fieldId}`);
+            if (indicator) {
+                indicator.classList.remove('show');
+            }
         }
 
         function findMissingFields() {
@@ -1196,7 +1335,11 @@
                 lastSoundTime = Date.now();
 
                 mediaRecorder.ondataavailable = (e) => {
-                    if (e.data.size > 0) audioChunks.push(e.data);
+                    if (e.data.size > 0) {
+                        audioChunks.push(e.data);
+                        // Send chunk to server for real-time processing
+                        socket.emit('audio_chunk', e.data);
+                    }
                 };
 
                 mediaRecorder.onstop = async () => {
@@ -1236,6 +1379,10 @@
                     input.value = normalized;
                     setFieldState(fieldId, 'filled');
                     hideFieldPrompt(fieldId);
+
+                    // Show confidence indicator for field-specific recording
+                    // Use 0.75 as default since single-field recording is targeted
+                    updateFieldConfidence(fieldId, 0.75);
 
                     // Remove from queue and continue
                     missingFieldsQueue = missingFieldsQueue.filter(f => f !== fieldId);
@@ -1287,6 +1434,7 @@
                 document.getElementById(field).value = '';
                 setFieldState(field, '');
                 hideFieldPrompt(field);
+                hideFieldConfidence(field);
             });
 
             // Reset state
