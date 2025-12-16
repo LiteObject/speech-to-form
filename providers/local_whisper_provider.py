@@ -72,6 +72,17 @@ class LocalWhisperProvider(AIProvider):
             self._is_loaded = False
             return False
 
+    def preload_model(self) -> bool:
+        """
+        Preload the Whisper model into memory.
+
+        Public method to allow preloading the model before first use.
+
+        Returns:
+            bool: True if model loaded successfully, False otherwise
+        """
+        return self._load_model()
+
     def transcribe_audio(self, audio_file_path: str) -> Optional[str]:
         """
         Transcribe audio file to text using local Whisper.

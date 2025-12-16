@@ -13,10 +13,8 @@ Supports:
 import base64
 import json
 import os
-from typing import Dict, Optional, Literal
+from typing import Dict, Optional, Literal, Any
 import logging
-import subprocess
-import tempfile
 
 try:
     import openai
@@ -71,7 +69,7 @@ class MultimodalProvider(AIProvider):
         self,
         model_name: str = "gpt-4o-audio-preview",
         backend: Literal["openai", "ollama", "vllm"] = "openai",
-        **kwargs
+        **kwargs,
     ):
         """
         Initialize Multimodal provider.
@@ -129,7 +127,7 @@ class MultimodalProvider(AIProvider):
             logger.warning(
                 "Whisper not available - install with: pip install openai-whisper"
             )
-        except Exception as e:
+        except (RuntimeError, OSError, ValueError) as e:
             logger.error("Failed to load Whisper model: %s", e)
 
     def _init_vllm(self):
@@ -150,7 +148,9 @@ class MultimodalProvider(AIProvider):
             Optional[Dict]: Dictionary with 'transcript' and 'form_data' keys
         """
         if not self.is_available():
-            logger.warning("Multimodal provider not available (backend: %s)", self.backend)
+            logger.warning(
+                "Multimodal provider not available (backend: %s)", self.backend
+            )
             return None
 
         if self.backend == "openai":
@@ -165,6 +165,10 @@ class MultimodalProvider(AIProvider):
 
     def _extract_with_openai(self, audio_path: str) -> Optional[Dict]:
         """Extract using OpenAI GPT-4o with native audio support."""
+        if self._openai_client is None:
+            logger.error("OpenAI client not initialized")
+            return None
+
         try:
             with open(audio_path, "rb") as audio_file:
                 audio_data = audio_file.read()
@@ -174,41 +178,55 @@ class MultimodalProvider(AIProvider):
 
             logger.info("Sending audio to OpenAI multimodal model: %s", self.model_name)
 
+            # Build messages - using list type to satisfy type checker for audio format
+            messages: list[Any] = [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": EXTRACTION_PROMPT},
+                        {
+                            "type": "input_audio",
+                            "input_audio": {
+                                "data": audio_base64,
+                                "format": ext if ext in ["wav", "mp3"] else "wav",
+                            },
+                        },
+                    ],
+                }
+            ]
+
             response = self._openai_client.chat.completions.create(
                 model=self.model_name,
                 modalities=["text"],
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": EXTRACTION_PROMPT},
-                            {
-                                "type": "input_audio",
-                                "input_audio": {
-                                    "data": audio_base64,
-                                    "format": ext if ext in ["wav", "mp3"] else "wav",
-                                },
-                            },
-                        ],
-                    }
-                ],
+                messages=messages,
                 temperature=0.1,
                 max_tokens=500,
             )
 
-            return self._parse_response(response.choices[0].message.content.strip())
+            content = response.choices[0].message.content
+            if content is None:
+                logger.warning("OpenAI returned empty content")
+                return None
+            return self._parse_response(content.strip())
 
-        except Exception as e:
+        except (IOError, OSError, ValueError, RuntimeError) as e:
             logger.error("OpenAI multimodal extraction error: %s", e)
             return None
 
     def _extract_with_ollama(self, audio_path: str) -> Optional[Dict]:
         """Extract using local Whisper + Ollama LLM (hybrid local approach)."""
+        if self._whisper_model is None:
+            logger.error("Whisper model not initialized")
+            return None
+        if requests is None:
+            logger.error("requests library not available")
+            return None
+
         try:
             # Step 1: Transcribe with local Whisper
             logger.info("Transcribing audio with local Whisper...")
             result = self._whisper_model.transcribe(audio_path)
-            transcript = result.get("text", "").strip()
+            transcript = str(result.get("text", "")).strip()
             logger.info("Whisper transcription: %s", transcript[:100])
 
             if not transcript:
@@ -247,12 +265,16 @@ class MultimodalProvider(AIProvider):
                 "missing_fields": ["name", "email", "phone", "address"],
             }
 
-        except Exception as e:
+        except (IOError, OSError, ValueError, RuntimeError, KeyError) as e:
             logger.error("Ollama multimodal extraction error: %s", e)
             return None
 
     def _extract_with_vllm(self, audio_path: str) -> Optional[Dict]:
         """Extract using vLLM with audio-capable model (e.g., Ultravox)."""
+        if requests is None:
+            logger.error("requests library not available")
+            return None
+
         try:
             with open(audio_path, "rb") as audio_file:
                 audio_data = audio_file.read()
@@ -291,7 +313,7 @@ class MultimodalProvider(AIProvider):
             response_text = response.json()["choices"][0]["message"]["content"].strip()
             return self._parse_response(response_text)
 
-        except Exception as e:
+        except (IOError, OSError, ValueError, RuntimeError, KeyError) as e:
             logger.error("vLLM multimodal extraction error: %s", e)
             return None
 
@@ -361,10 +383,12 @@ class MultimodalProvider(AIProvider):
             return self._whisper_model is not None
         elif self.backend == "vllm":
             # Check if vLLM server is reachable
+            if requests is None:
+                return False
             try:
                 response = requests.get(f"{self.vllm_url}/health", timeout=5)
                 return response.status_code == 200
-            except Exception:
+            except (OSError, ValueError, RuntimeError):
                 return False
         return False
 

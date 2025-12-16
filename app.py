@@ -14,7 +14,7 @@ from datetime import datetime
 import tempfile
 import os
 
-from flask import Flask, jsonify, render_template, request, current_app
+from flask import Flask, jsonify, render_template, request
 from werkzeug.utils import secure_filename
 
 from config import settings
@@ -34,17 +34,16 @@ app = Flask(__name__)
 # Global form processor instance
 form_processor = FormProcessor()
 
-# Global whisper provider instance (initialize lazily)
-whisper_provider = None
+# Whisper provider storage (using dict to avoid global statement)
+_whisper_state: dict = {"provider": None}
 
 
 def get_whisper_provider():
     """Get or create whisper provider instance."""
-    global whisper_provider
-    if whisper_provider is None:
+    if _whisper_state["provider"] is None:
         model_size = getattr(settings, "WHISPER_MODEL_SIZE", "base")
-        whisper_provider = LocalWhisperProvider(model_size=model_size)
-    return whisper_provider
+        _whisper_state["provider"] = LocalWhisperProvider(model_size=model_size)
+    return _whisper_state["provider"]
 
 
 @app.route("/")
@@ -160,8 +159,8 @@ def transcribe_audio():
             )
 
         # Get Whisper provider
-        whisper = get_whisper_provider()
-        if not whisper.is_available():
+        whisper_instance = get_whisper_provider()
+        if not whisper_instance.is_available():
             logger.error("Whisper provider not available")
             return (
                 jsonify(
@@ -184,7 +183,7 @@ def transcribe_audio():
         try:
             # Transcribe audio
             logger.info("Starting transcription of file: %s", secure_fname)
-            transcript = whisper.transcribe_audio(tmp_file_path)
+            transcript = whisper_instance.transcribe_audio(tmp_file_path)
 
             if transcript:
                 logger.info("Transcription successful: %s", transcript[:100])
@@ -200,7 +199,7 @@ def transcribe_audio():
                         "missing_fields": result.get("missing_fields", []),
                         "message": result.get("message", "Transcription completed"),
                         "method": "local_whisper",
-                        "model": whisper.model_size,
+                        "model": whisper_instance.model_size,
                     }
                 )
             else:
@@ -270,8 +269,8 @@ def transcribe_audio_simple():
             )
 
         # Get Whisper provider
-        whisper = get_whisper_provider()
-        if not whisper.is_available():
+        whisper_instance = get_whisper_provider()
+        if not whisper_instance.is_available():
             logger.error("Whisper provider not available")
             return (
                 jsonify(
@@ -294,7 +293,7 @@ def transcribe_audio_simple():
         try:
             # Transcribe audio
             logger.info("Starting simple transcription of file: %s", secure_fname)
-            transcript = whisper.transcribe_audio(tmp_file_path)
+            transcript = whisper_instance.transcribe_audio(tmp_file_path)
 
             if transcript:
                 logger.info("Simple transcription successful: %s", transcript[:100])
@@ -305,7 +304,7 @@ def transcribe_audio_simple():
                         "success": True,
                         "transcript": transcript,
                         "method": "local_whisper",
-                        "model": whisper.model_size,
+                        "model": whisper_instance.model_size,
                     }
                 )
             else:
@@ -341,8 +340,7 @@ multimodal_providers = {}
 
 def get_multimodal_provider(backend: str = "openai"):
     """Get or create multimodal provider instance for specified backend."""
-    global multimodal_providers
-
+    # multimodal_providers is module-level dict, accessed directly
     if backend not in multimodal_providers:
         from providers.multimodal_provider import MultimodalProvider
 
@@ -666,12 +664,12 @@ if __name__ == "__main__":
     # Preload Whisper model to eliminate first-call delay
     logger.info("Preloading Whisper model for faster first transcription...")
     try:
-        whisper = get_whisper_provider()
-        if whisper._load_model():
+        whisper_loader = get_whisper_provider()
+        if whisper_loader.preload_model():
             logger.info("Whisper model preloaded successfully")
         else:
             logger.warning("Whisper model preload failed - first call will be slower")
-    except Exception as e:
+    except (ValueError, RuntimeError, OSError) as e:
         logger.warning("Whisper preload error: %s - first call will be slower", str(e))
 
     app.run(
